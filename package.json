@@ -1,0 +1,42 @@
+{
+  "name": "diocesan-finance-api",
+  "version": "1.0.0",
+  "description": "GraphQL API for Diocesan Financial Management System",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "db:init": "psql -U postgres -d diocesan_finance -f schema.sql",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "diocesan",
+    "finance",
+    "graphql",
+    "api"
+  ],
+  "author": "Justice Obonin",
+  "license": "MIT",
+  "dependencies": {
+    "apollo-server-express": "3.12.1",
+    "express": "4.18.2",
+    "graphql": "16.6.0",
+    "bcrypt": "5.1.0",
+    "jsonwebtoken": "9.0.0",
+    "pg": "8.10.0",
+    "multer": "1.4.5-lts.1",
+    "cors": "2.8.5",
+    "dotenv": "16.0.3",
+    "graphql-scalars": "1.20.1",
+    "exceljs": "4.3.0",
+    "csv-parse": "5.3.10"
+  },
+  "devDependencies": {
+    "nodemon": "2.0.20"
+  },
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=7.0.0"
+  }
+}
