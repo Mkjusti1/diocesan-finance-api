@@ -28,3 +28,5 @@ coverage/
 
 # Uploads
 uploads/
+seed.mjs
+seed-admin.mjs
