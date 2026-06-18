@@ -4,6 +4,7 @@ import express from 'express';
 import { ApolloServer } from 'apollo-server-express';
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
+import { promises as fs } from 'fs';
 import cors from 'cors';
 import multer from 'multer';
 import { typeDefs } from './graphql/typeDefs.js';
@@ -137,7 +138,7 @@ app.post('/api/upload', authenticateToken, upload.single('file'), async (req, re
     );
 
     // Clean up uploaded file
-    const fs = require('fs').promises;
+    
     await fs.unlink(req.file.path);
 
     res.json({
@@ -157,7 +158,7 @@ app.post('/api/upload', authenticateToken, upload.single('file'), async (req, re
 
     // Clean up file
     if (req.file) {
-      const fs = require('fs').promises;
+      
       fs.unlink(req.file.path).catch(console.error);
     }
 

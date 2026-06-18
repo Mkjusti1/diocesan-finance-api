@@ -1,924 +1,744 @@
 // src/graphql/resolvers.js
-// Updated resolvers with three-role architecture, priest tokens, collections CRUD, and debtors dashboard
+import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import bcryptjs from 'bcryptjs';
-import crypto from 'crypto';
 import { pool } from '../db/pool.js';
 import { logAuditEvent } from '../utils/auditLog.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
-const REFRESH_SECRET = process.env.REFRESH_SECRET || 'your-refresh-secret';
 
-// Helper: Get current user from context
-const getCurrentUser = (context) => {
-  if (!context.user) {
-    throw new Error('Not authenticated');
-  }
-  return context.user;
-};
-
-// Helper: Check authorization
-const requireRole = (user, allowedRoles) => {
-  if (!allowedRoles.includes(user.role)) {
-    throw new Error(`Unauthorized: requires ${allowedRoles.join(' or ')}`);
-  }
-};
-
-// Helper: Month number to name
-const monthNames = [
-  '', 'JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE',
-  'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'
+const MONTH_NAMES = [
+  '', 'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
 ];
-const monthToName = (month) => monthNames[month];
 
-// Helper: Generate secure priest token
-const generatePriestTokenString = () => {
-  return crypto.randomBytes(32).toString('hex');
-};
+// ─── Auth Helpers ────────────────────────────────────────────────────────────
+
+function generateToken(user) {
+  return jwt.sign(
+    { id: user.id, email: user.email, role: user.role, parishId: user.parish_id },
+    JWT_SECRET,
+    { expiresIn: '7d' }
+  );
+}
+
+function requireAuth(user) {
+  if (!user) throw new Error('UNAUTHENTICATED: Please log in');
+}
+
+function requireRole(user, ...roles) {
+  requireAuth(user);
+  if (!roles.includes(user.role)) {
+    throw new Error(`FORBIDDEN: Requires role ${roles.join(' or ')}`);
+  }
+}
+
+// ─── Row Mappers ─────────────────────────────────────────────────────────────
+
+function mapUser(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    name: `${row.first_name} ${row.last_name}`.trim(),
+    email: row.email,
+    role: row.role,
+    parishId: row.parish_id,
+    createdAt: row.created_at?.toISOString(),
+  };
+}
+
+function mapParish(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    name: row.name,
+    diocese: row.diocese,
+    location: row.location,
+    contactEmail: row.contact_email,
+    contactPhone: row.contact_phone,
+    createdAt: row.created_at?.toISOString(),
+  };
+}
+
+function mapCollection(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    name: row.name,
+    description: row.description,
+    isActive: row.is_active,
+    createdAt: row.created_at?.toISOString(),
+  };
+}
+
+function mapRemittanceRecord(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    year: row.year,
+    month: row.month,
+    monthName: MONTH_NAMES[row.month],
+    totalAmount: parseFloat(row.total_amount || 0),
+    notes: row.notes,
+    createdAt: row.created_at?.toISOString(),
+    // resolved by field resolvers:
+    _parishId: row.parish_id,
+    _uploadedById: row.uploaded_by,
+  };
+}
+
+function mapDebtor(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    year: row.year,
+    month: row.month,
+    monthName: MONTH_NAMES[row.month],
+    expectedAmount: parseFloat(row.expected_amount || 0),
+    actualAmount: parseFloat(row.actual_amount || 0),
+    balance: parseFloat(row.balance || 0),
+    isPaid: row.is_paid,
+    notes: row.notes,
+    updatedAt: row.updated_at?.toISOString(),
+    _parishId: row.parish_id,
+    _collectionId: row.collection_id,
+  };
+}
+
+// ─── Resolvers ───────────────────────────────────────────────────────────────
 
 export const resolvers = {
 
-  Query: {
-    // ============================================
-    // AUTHENTICATION QUERIES
-    // ============================================
-    me: async (_, __, context) => {
-      const user = getCurrentUser(context);
-      const result = await pool.query('SELECT * FROM users WHERE id = $1', [user.id]);
-      return result.rows[0];
+  // ── Field Resolvers ────────────────────────────────────────────────────────
+
+  User: {
+    parish: async (parent) => {
+      if (!parent.parishId) return null;
+      const { rows } = await pool.query('SELECT * FROM parishes WHERE id = $1', [parent.parishId]);
+      return mapParish(rows[0]);
     },
-
-    // Get all users (ADMIN only)
-    users: async (_, { role }, context) => {
-      const user = getCurrentUser(context);
-      requireRole(user, ['ADMIN']);
-
-      let query = 'SELECT * FROM users';
-      const params = [];
-
-      if (role) {
-        query += ' WHERE role = $1';
-        params.push(role);
-      }
-
-      const result = await pool.query(query, params);
-      return result.rows;
-    },
-
-    // Get user by ID (ADMIN only)
-    userById: async (_, { id }, context) => {
-      const user = getCurrentUser(context);
-      requireRole(user, ['ADMIN']);
-
-      const result = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
-      return result.rows[0] || null;
-    },
-
-    // ============================================
-    // PARISH QUERIES
-    // ============================================
-
-    // Get current user's parish (for priests and bishops)
-    myParish: async (_, __, context) => {
-      const user = getCurrentUser(context);
-      if (!user.parish_id) {
-        throw new Error('No parish assigned to this user');
-      }
-
-      const result = await pool.query('SELECT * FROM parishes WHERE id = $1', [user.parish_id]);
-      return result.rows[0];
-    },
-
-    // Get all parishes
-    parishes: async (_, __, context) => {
-      const user = getCurrentUser(context);
-
-      // Priests can only see their own parish
-      if (user.role === 'PRIEST') {
-        const result = await pool.query('SELECT * FROM parishes WHERE id = $1', [user.parish_id]);
-        return result.rows;
-      }
-
-      // Admins and Bishops can see all parishes
-      const result = await pool.query('SELECT * FROM parishes ORDER BY name');
-      return result.rows;
-    },
-
-    // Get parish by ID
-    parishById: async (_, { id }, context) => {
-      const user = getCurrentUser(context);
-
-      // Priests can only access their own parish
-      if (user.role === 'PRIEST' && user.parish_id !== parseInt(id)) {
-        throw new Error('Unauthorized: cannot access other parishes');
-      }
-
-      const result = await pool.query('SELECT * FROM parishes WHERE id = $1', [id]);
-      return result.rows[0] || null;
-    },
-
-    // ============================================
-    // COLLECTION QUERIES
-    // ============================================
-
-    // Get all collections
-    collections: async (_, __, context) => {
-      const user = getCurrentUser(context);
-      // All authenticated users can view collections
-      const result = await pool.query(
-        'SELECT * FROM collections WHERE is_active = true ORDER BY name'
-      );
-      return result.rows;
-    },
-
-    // Get collection by ID
-    collectionById: async (_, { id }, context) => {
-      const user = getCurrentUser(context);
-      const result = await pool.query('SELECT * FROM collections WHERE id = $1', [id]);
-      return result.rows[0] || null;
-    },
-
-    // ============================================
-    // REMITTANCE QUERIES
-    // ============================================
-
-    // Get remittance for specific month
-    parishMonthlyRemittance: async (_, { parishId, year, month }, context) => {
-      const user = getCurrentUser(context);
-
-      if (user.role === 'PRIEST' && user.parish_id !== parseInt(parishId)) {
-        throw new Error('Unauthorized');
-      }
-
-      const result = await pool.query(
-        'SELECT * FROM remittance_records WHERE parish_id = $1 AND year = $2 AND month = $3',
-        [parishId, year, month]
-      );
-      return result.rows[0] || null;
-    },
-
-    // Get yearly remittance summary
-    parishYearlyRemittance: async (_, { parishId, year }, context) => {
-      const user = getCurrentUser(context);
-
-      if (user.role === 'PRIEST' && user.parish_id !== parseInt(parishId)) {
-        throw new Error('Unauthorized');
-      }
-
-      const parishResult = await pool.query('SELECT * FROM parishes WHERE id = $1', [parishId]);
-      const parish = parishResult.rows[0];
-
-      const monthlyResult = await pool.query(`
-        SELECT 
-          rr.month,
-          COALESCE(SUM(rli.amount), 0) as total
-        FROM remittance_records rr
-        LEFT JOIN remittance_line_items rli ON rr.id = rli.remittance_record_id
-        WHERE rr.parish_id = $1 AND rr.year = $2
-        GROUP BY rr.month
-        ORDER BY rr.month
-      `, [parishId, year]);
-
-      const monthlyTotals = monthlyResult.rows.map(row => ({
-        month: row.month,
-        monthName: monthToName(row.month),
-        amount: row.total
-      }));
-
-      const yearTotal = monthlyTotals.reduce((sum, m) => sum + parseFloat(m.amount), 0);
-
-      return { parish, year, monthlyTotals, yearTotal };
-    },
-
-    // ============================================
-    // DEBTORS QUERIES
-    // ============================================
-
-    // Get debtors (those missing remittance data)
-    debtors: async (_, { year, parishId, collectionId, month }, context) => {
-      const user = getCurrentUser(context);
-      requireRole(user, ['ADMIN', 'BISHOP']);
-
-      let query = `
-        SELECT d.*, p.name as parish_name, c.name as collection_name
-        FROM debtors d
-        JOIN parishes p ON d.parish_id = p.id
-        JOIN collections c ON d.collection_id = c.id
-        WHERE d.year = $1
-      `;
-      const params = [year];
-      let paramIndex = 2;
-
-      if (parishId) {
-        query += ` AND d.parish_id = $${paramIndex}`;
-        params.push(parishId);
-        paramIndex++;
-      }
-
-      if (collectionId) {
-        query += ` AND d.collection_id = $${paramIndex}`;
-        params.push(collectionId);
-        paramIndex++;
-      }
-
-      if (month) {
-        query += ` AND d.month = $${paramIndex}`;
-        params.push(month);
-        paramIndex++;
-      }
-
-      query += ' ORDER BY p.name, c.name, d.month';
-
-      const result = await pool.query(query, params);
-      return result.rows;
-    },
-
-    // Get debtors summary (aggregated by parish and collection)
-    debtorsSummary: async (_, { year, parishId, collectionId }, context) => {
-      const user = getCurrentUser(context);
-      requireRole(user, ['ADMIN', 'BISHOP']);
-
-      let query = `
-        SELECT 
-          d.parish_id,
-          d.collection_id,
-          d.year,
-          SUM(COALESCE(d.expected_amount, 0)) as total_expected,
-          SUM(COALESCE(d.actual_amount, 0)) as total_actual,
-          SUM(COALESCE(d.balance, 0)) as total_balance
-        FROM debtors d
-        WHERE d.year = $1
-      `;
-      const params = [year];
-      let paramIndex = 2;
-
-      if (parishId) {
-        query += ` AND d.parish_id = $${paramIndex}`;
-        params.push(parishId);
-        paramIndex++;
-      }
-
-      if (collectionId) {
-        query += ` AND d.collection_id = $${paramIndex}`;
-        params.push(collectionId);
-        paramIndex++;
-      }
-
-      query += ' GROUP BY d.parish_id, d.collection_id, d.year ORDER BY d.parish_id, d.collection_id';
-
-      const result = await pool.query(query, params);
-
-      // Build detailed summaries with monthly breakdown
-      const summaries = [];
-      for (const row of result.rows) {
-        const parishResult = await pool.query('SELECT * FROM parishes WHERE id = $1', [row.parish_id]);
-        const collectionResult = await pool.query('SELECT * FROM collections WHERE id = $1', [row.collection_id]);
-
-        const monthlyResult = await pool.query(
-          `SELECT month, expected_amount, actual_amount, balance FROM debtors 
-           WHERE parish_id = $1 AND collection_id = $2 AND year = $3
-           ORDER BY month`,
-          [row.parish_id, row.collection_id, row.year]
-        );
-
-        const monthlyBreakdown = monthlyResult.rows.map(m => ({
-          month: m.month,
-          monthName: monthToName(m.month),
-          expectedAmount: m.expected_amount,
-          actualAmount: m.actual_amount,
-          balance: m.balance
-        }));
-
-        summaries.push({
-          parish: parishResult.rows[0],
-          collection: collectionResult.rows[0],
-          year: row.year,
-          totalExpected: row.total_expected,
-          totalActual: row.total_actual,
-          totalBalance: row.total_balance,
-          monthlyBreakdown
-        });
-      }
-
-      return summaries;
-    },
-
-    // Get debtors for specific parish and collection
-    debtorsByParishAndCollection: async (_, { parishId, collectionId, year }, context) => {
-      const user = getCurrentUser(context);
-      requireRole(user, ['ADMIN', 'BISHOP']);
-
-      const results = await resolvers.Query.debtorsSummary(
-        _, 
-        { year, parishId, collectionId }, 
-        context
-      );
-
-      return results[0] || null;
-    },
-
-    // Diocese financial summary
-    dioceseFinancialSummary: async (_, { year }, context) => {
-      const user = getCurrentUser(context);
-      // Admins and Bishops can view summary (not priests)
-      if (user.role === 'PRIEST') {
-        throw new Error('Priests cannot view diocese-wide summaries');
-      }
-
-      const parishesResult = await pool.query('SELECT id FROM parishes ORDER BY name');
-
-      const parishTotals = await Promise.all(
-        parishesResult.rows.map(async (parish) => {
-          const monthlyResult = await pool.query(`
-            SELECT 
-              rr.month,
-              COALESCE(SUM(rli.amount), 0) as total
-            FROM remittance_records rr
-            LEFT JOIN remittance_line_items rli ON rr.id = rli.remittance_record_id
-            WHERE rr.parish_id = $1 AND rr.year = $2
-            GROUP BY rr.month
-            ORDER BY rr.month
-          `, [parish.id, year]);
-
-          const monthlyTotals = monthlyResult.rows.map(row => ({
-            month: row.month,
-            monthName: monthToName(row.month),
-            amount: row.total
-          }));
-
-          const yearTotal = monthlyTotals.reduce((sum, m) => sum + parseFloat(m.amount), 0);
-
-          const parishData = await pool.query('SELECT * FROM parishes WHERE id = $1', [parish.id]);
-
-          return {
-            parish: parishData.rows[0],
-            year,
-            monthlyTotals,
-            yearTotal
-          };
-        })
-      );
-
-      const dioceseMonthlyResult = await pool.query(`
-        SELECT 
-          rr.month,
-          COALESCE(SUM(rli.amount), 0) as total
-        FROM remittance_records rr
-        LEFT JOIN remittance_line_items rli ON rr.id = rli.remittance_record_id
-        WHERE rr.year = $1
-        GROUP BY rr.month
-        ORDER BY rr.month
-      `, [year]);
-
-      const monthlyDioceseTotals = dioceseMonthlyResult.rows.map(row => ({
-        month: row.month,
-        monthName: monthToName(row.month),
-        total: row.total
-      }));
-
-      const totalRemittance = monthlyDioceseTotals.reduce((sum, m) => sum + parseFloat(m.total), 0);
-
-      return { year, totalRemittance, parishTotals, monthlyDioceseTotals };
-    },
-
-    // Diocese final debtors summary
-    dioceseFinalDebtorsSummary: async (_, { year }, context) => {
-      const user = getCurrentUser(context);
-      requireRole(user, ['ADMIN', 'BISHOP']);
-
-      const results = await resolvers.Query.debtorsSummary(_, { year }, context);
-      return results;
-    }
   },
 
+  RemittanceRecord: {
+    parish: async (parent) => {
+      const { rows } = await pool.query('SELECT * FROM parishes WHERE id = $1', [parent._parishId]);
+      return mapParish(rows[0]);
+    },
+    uploadedBy: async (parent) => {
+      if (!parent._uploadedById) return null;
+      const { rows } = await pool.query('SELECT * FROM users WHERE id = $1', [parent._uploadedById]);
+      return mapUser(rows[0]);
+    },
+    lineItems: async (parent) => {
+      const { rows } = await pool.query(
+        `SELECT rli.*, c.name as collection_name, c.description as collection_description,
+                c.is_active as collection_is_active, c.created_at as collection_created_at
+         FROM remittance_line_items rli
+         JOIN collections c ON rli.collection_id = c.id
+         WHERE rli.remittance_record_id = $1`,
+        [parent.id]
+      );
+      return rows.map(row => ({
+        id: row.id,
+        remittanceSourceId: row.collection_id,
+        amount: parseFloat(row.amount),
+        source: {
+          id: row.collection_id,
+          name: row.collection_name,
+          description: row.collection_description,
+          isActive: row.collection_is_active,
+          createdAt: row.collection_created_at?.toISOString(),
+        },
+      }));
+    },
+  },
+
+  Debtor: {
+    parish: async (parent) => {
+      const { rows } = await pool.query('SELECT * FROM parishes WHERE id = $1', [parent._parishId]);
+      return mapParish(rows[0]);
+    },
+    collection: async (parent) => {
+      if (!parent._collectionId) return null;
+      const { rows } = await pool.query('SELECT * FROM collections WHERE id = $1', [parent._collectionId]);
+      return mapCollection(rows[0]);
+    },
+  },
+
+  AuditLog: {
+    user: async (parent) => {
+      const { rows } = await pool.query('SELECT * FROM users WHERE id = $1', [parent.userId]);
+      return mapUser(rows[0]);
+    },
+  },
+
+  // ── Queries ────────────────────────────────────────────────────────────────
+
+  Query: {
+
+    me: async (_, __, { user }) => {
+      requireAuth(user);
+      const { rows } = await pool.query('SELECT * FROM users WHERE id = $1', [user.id]);
+      return mapUser(rows[0]);
+    },
+
+    // Parishes
+    parishes: async (_, __, { user }) => {
+      requireAuth(user);
+      const { rows } = await pool.query('SELECT * FROM parishes ORDER BY name');
+      return rows.map(mapParish);
+    },
+
+    parish: async (_, { id }, { user }) => {
+      requireAuth(user);
+      // PRIEST can only view their own parish
+      if (user.role === 'PRIEST' && user.parishId !== parseInt(id)) {
+        throw new Error('FORBIDDEN: You can only view your own parish');
+      }
+      const { rows } = await pool.query('SELECT * FROM parishes WHERE id = $1', [id]);
+      return mapParish(rows[0]);
+    },
+
+    // Collections (remittance sources)
+    remittanceSources: async (_, __, { user }) => {
+      requireAuth(user);
+      const { rows } = await pool.query(
+        'SELECT * FROM collections WHERE is_active = true ORDER BY name'
+      );
+      return rows.map(mapCollection);
+    },
+
+    // Remittance Records
+    remittanceRecords: async (_, { year, month, parishId }, { user }) => {
+      requireAuth(user);
+
+      // PRIEST can only see their own parish
+      if (user.role === 'PRIEST') {
+        parishId = user.parishId;
+      }
+
+      let query = `
+        SELECT rr.*,
+               COALESCE(SUM(rli.amount), 0) as total_amount
+        FROM remittance_records rr
+        LEFT JOIN remittance_line_items rli ON rr.id = rli.remittance_record_id
+        WHERE 1=1
+      `;
+      const params = [];
+
+      if (year) { params.push(year); query += ` AND rr.year = $${params.length}`; }
+      if (month) { params.push(month); query += ` AND rr.month = $${params.length}`; }
+      if (parishId) { params.push(parishId); query += ` AND rr.parish_id = $${params.length}`; }
+
+      query += ' GROUP BY rr.id ORDER BY rr.year DESC, rr.month DESC, rr.parish_id';
+
+      const { rows } = await pool.query(query, params);
+      return rows.map(mapRemittanceRecord);
+    },
+
+    remittanceRecord: async (_, { id }, { user }) => {
+      requireAuth(user);
+      const { rows } = await pool.query(
+        `SELECT rr.*, COALESCE(SUM(rli.amount), 0) as total_amount
+         FROM remittance_records rr
+         LEFT JOIN remittance_line_items rli ON rr.id = rli.remittance_record_id
+         WHERE rr.id = $1
+         GROUP BY rr.id`,
+        [id]
+      );
+      if (!rows[0]) return null;
+
+      // PRIEST guard
+      if (user.role === 'PRIEST' && rows[0].parish_id !== user.parishId) {
+        throw new Error('FORBIDDEN: You can only view your own parish records');
+      }
+      return mapRemittanceRecord(rows[0]);
+    },
+
+    myParishRemittances: async (_, { year }, { user }) => {
+      requireRole(user, 'PRIEST');
+      if (!user.parishId) throw new Error('No parish assigned to your account');
+
+      let query = `
+        SELECT rr.*, COALESCE(SUM(rli.amount), 0) as total_amount
+        FROM remittance_records rr
+        LEFT JOIN remittance_line_items rli ON rr.id = rli.remittance_record_id
+        WHERE rr.parish_id = $1
+      `;
+      const params = [user.parishId];
+
+      if (year) { params.push(year); query += ` AND rr.year = $${params.length}`; }
+
+      query += ' GROUP BY rr.id ORDER BY rr.year DESC, rr.month DESC';
+
+      const { rows } = await pool.query(query, params);
+      return rows.map(mapRemittanceRecord);
+    },
+
+    // Debtors
+    debtors: async (_, { year, overdueOnly }, { user }) => {
+      requireRole(user, 'ADMIN', 'BISHOP');
+
+      let query = 'SELECT * FROM debtors WHERE 1=1';
+      const params = [];
+
+      if (year) { params.push(year); query += ` AND year = $${params.length}`; }
+      if (overdueOnly) { query += ' AND is_paid = false AND balance > 0'; }
+
+      query += ' ORDER BY year DESC, month DESC, parish_id';
+
+      const { rows } = await pool.query(query, params);
+      return rows.map(mapDebtor);
+    },
+
+    parishDebtors: async (_, { parishId, year }, { user }) => {
+      requireAuth(user);
+      if (user.role === 'PRIEST' && user.parishId !== parseInt(parishId)) {
+        throw new Error('FORBIDDEN: You can only view your own parish debtors');
+      }
+
+      let query = 'SELECT * FROM debtors WHERE parish_id = $1';
+      const params = [parishId];
+
+      if (year) { params.push(year); query += ` AND year = $${params.length}`; }
+
+      query += ' ORDER BY year DESC, month DESC';
+
+      const { rows } = await pool.query(query, params);
+      return rows.map(mapDebtor);
+    },
+
+    // Dashboard
+    dashboardStats: async (_, { year }, { user }) => {
+      requireRole(user, 'ADMIN', 'BISHOP');
+
+      const currentMonth = new Date().getMonth() + 1;
+
+      const [collected, parishes, reportedThisMonth, outstanding, recent] = await Promise.all([
+        pool.query(
+          `SELECT COALESCE(SUM(rli.amount), 0) as total
+           FROM remittance_line_items rli
+           JOIN remittance_records rr ON rli.remittance_record_id = rr.id
+           WHERE rr.year = $1`,
+          [year]
+        ),
+        pool.query('SELECT COUNT(*) as count FROM parishes'),
+        pool.query(
+          `SELECT COUNT(DISTINCT parish_id) as count
+           FROM remittance_records
+           WHERE year = $1 AND month = $2`,
+          [year, currentMonth]
+        ),
+        pool.query(
+          `SELECT COALESCE(SUM(balance), 0) as total
+           FROM debtors
+           WHERE year = $1 AND is_paid = false`,
+          [year]
+        ),
+        pool.query(
+          `SELECT rr.*, COALESCE(SUM(rli.amount), 0) as total_amount
+           FROM remittance_records rr
+           LEFT JOIN remittance_line_items rli ON rr.id = rli.remittance_record_id
+           WHERE rr.year = $1
+           GROUP BY rr.id
+           ORDER BY rr.created_at DESC
+           LIMIT 5`,
+          [year]
+        ),
+      ]);
+
+      return {
+        totalCollectedThisYear: parseFloat(collected.rows[0].total),
+        totalParishes: parseInt(parishes.rows[0].count),
+        parishesReportedThisMonth: parseInt(reportedThisMonth.rows[0].count),
+        totalOutstanding: parseFloat(outstanding.rows[0].total),
+        recentActivity: recent.rows.map(mapRemittanceRecord),
+      };
+    },
+
+    monthlySummary: async (_, { year }, { user }) => {
+      requireRole(user, 'ADMIN', 'BISHOP');
+
+      const { rows } = await pool.query(
+        `SELECT rr.month,
+                COALESCE(SUM(rli.amount), 0) as total_collected,
+                COUNT(DISTINCT rr.parish_id) as parish_count
+         FROM remittance_records rr
+         LEFT JOIN remittance_line_items rli ON rr.id = rli.remittance_record_id
+         WHERE rr.year = $1
+         GROUP BY rr.month
+         ORDER BY rr.month`,
+        [year]
+      );
+
+      return rows.map(row => ({
+        month: row.month,
+        monthName: MONTH_NAMES[row.month],
+        totalCollected: parseFloat(row.total_collected),
+        parishCount: parseInt(row.parish_count),
+      }));
+    },
+
+    parishSummaries: async (_, { year }, { user }) => {
+      requireRole(user, 'ADMIN', 'BISHOP');
+
+      const { rows } = await pool.query(
+        `SELECT p.*,
+                COALESCE(SUM(rli.amount), 0) as total_collected,
+                COUNT(DISTINCT rr.month) as months_reported,
+                MAX(rr.created_at) as last_reported,
+                COALESCE(SUM(d.balance), 0) as outstanding_balance
+         FROM parishes p
+         LEFT JOIN remittance_records rr ON p.id = rr.parish_id AND rr.year = $1
+         LEFT JOIN remittance_line_items rli ON rr.id = rli.remittance_record_id
+         LEFT JOIN debtors d ON p.id = d.parish_id AND d.year = $1 AND d.is_paid = false
+         GROUP BY p.id
+         ORDER BY p.name`,
+        [year]
+      );
+
+      return rows.map(row => ({
+        parish: mapParish(row),
+        totalCollected: parseFloat(row.total_collected),
+        monthsReported: parseInt(row.months_reported),
+        lastReported: row.last_reported?.toISOString() || null,
+        outstandingBalance: parseFloat(row.outstanding_balance),
+      }));
+    },
+
+    auditLogs: async (_, { limit = 100 }, { user }) => {
+      requireRole(user, 'ADMIN');
+      const { rows } = await pool.query(
+        'SELECT * FROM audit_logs ORDER BY timestamp DESC LIMIT $1',
+        [limit]
+      );
+      return rows.map(row => ({
+        id: row.id,
+        userId: row.user_id,
+        action: row.action,
+        entityType: row.entity_type,
+        entityId: row.entity_id,
+        oldValues: row.old_values ? JSON.stringify(row.old_values) : null,
+        newValues: row.new_values ? JSON.stringify(row.new_values) : null,
+        timestamp: row.timestamp?.toISOString(),
+      }));
+    },
+  },
+
+  // ── Mutations ──────────────────────────────────────────────────────────────
+
   Mutation: {
-    // ============================================
-    // AUTHENTICATION MUTATIONS
-    // ============================================
 
-    // Login with email/password (ADMIN or BISHOP)
-    login: async (_, { email, password }) => {
-      const result = await pool.query(
-        'SELECT * FROM users WHERE email = $1 AND is_active = true AND role IN ($2, $3)',
-        [email, 'ADMIN', 'BISHOP']
+    // Auth
+    login: async (_, { input }) => {
+      const { email, password } = input;
+
+      // Try email/password login (ADMIN and BISHOP)
+      const { rows } = await pool.query(
+        'SELECT * FROM users WHERE email = $1 AND is_active = true',
+        [email]
       );
 
-      const user = result.rows[0];
-      if (!user) {
+      if (rows.length === 0) {
         throw new Error('Invalid credentials');
       }
 
-      const isValid = await bcrypt.compare(password, user.password_hash);
-      if (!isValid) {
-        throw new Error('Invalid credentials');
+      const dbUser = rows[0];
+
+      if (!dbUser.password_hash) {
+        throw new Error('This account uses token-based login');
       }
 
-      const token = jwt.sign(
-        { id: user.id, email: user.email, role: user.role },
-        JWT_SECRET,
-        { expiresIn: '1h' }
-      );
+      const valid = await bcrypt.compare(password, dbUser.password_hash);
+      if (!valid) throw new Error('Invalid credentials');
 
-      const refreshToken = jwt.sign(
-        { id: user.id },
-        REFRESH_SECRET,
-        { expiresIn: '7d' }
-      );
-
-      return { token, refreshToken, user };
+      const token = generateToken(dbUser);
+      return { token, user: mapUser(dbUser) };
     },
 
-    // Login with priest token (PRIEST only)
-    loginWithPriestToken: async (_, { token }) => {
-      const result = await pool.query(
-        'SELECT * FROM users WHERE priest_token = $1 AND is_active = true AND role = $2',
-        [token, 'PRIEST']
+    loginWithToken: async (_, { token: priestToken }) => {
+      const { rows } = await pool.query(
+        `SELECT * FROM users
+         WHERE priest_token = $1
+           AND is_active = true
+           AND role = 'PRIEST'
+           AND (token_expires_at IS NULL OR token_expires_at > NOW())`,
+        [priestToken]
       );
 
-      const user = result.rows[0];
-      if (!user) {
-        throw new Error('Invalid priest token');
+      if (rows.length === 0) {
+        throw new Error('Invalid or expired token');
       }
 
-      const jwtToken = jwt.sign(
-        { id: user.id, role: user.role, parish_id: user.parish_id },
-        JWT_SECRET,
-        { expiresIn: '24h' }
-      );
-
-      const refreshToken = jwt.sign(
-        { id: user.id },
-        REFRESH_SECRET,
-        { expiresIn: '30d' }
-      );
-
-      return { token: jwtToken, refreshToken, user };
+      const dbUser = rows[0];
+      const jwtToken = generateToken(dbUser);
+      return { token: jwtToken, user: mapUser(dbUser) };
     },
 
-    // ============================================
-    // USER MANAGEMENT MUTATIONS
-    // ============================================
+    changePassword: async (_, { currentPassword, newPassword }, { user }) => {
+      requireAuth(user);
 
-    // Register user (ADMIN only)
-    registerUser: async (_, { email, password, firstName, lastName, role, parishId }, context) => {
-      const user = getCurrentUser(context);
-      requireRole(user, ['ADMIN']);
+      const { rows } = await pool.query('SELECT * FROM users WHERE id = $1', [user.id]);
+      const dbUser = rows[0];
 
-      // Priests don't need email/password
+      if (!dbUser.password_hash) {
+        throw new Error('This account does not use password login');
+      }
+
+      const valid = await bcrypt.compare(currentPassword, dbUser.password_hash);
+      if (!valid) throw new Error('Current password is incorrect');
+
+      const hash = await bcrypt.hash(newPassword, 12);
+      await pool.query('UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2', [hash, user.id]);
+
+      await logAuditEvent(user.id, 'CHANGE_PASSWORD', 'users', user.id, null, null);
+      return true;
+    },
+
+    // Users
+    createUser: async (_, { input }, { user }) => {
+      requireRole(user, 'ADMIN');
+      const { name, email, password, role, parishId } = input;
+
+      // Split name into first/last
+      const parts = name.trim().split(' ');
+      const firstName = parts[0];
+      const lastName = parts.slice(1).join(' ') || '';
+
       let passwordHash = null;
-      if (role !== 'PRIEST') {
-        if (!email || !password) {
-          throw new Error('Email and password required for non-priest users');
-        }
-        passwordHash = await bcrypt.hash(password, 10);
+      let priestToken = null;
+
+      if (role === 'PRIEST') {
+        // Generate a random token for priest login
+        const { randomBytes } = await import('crypto');
+        priestToken = randomBytes(32).toString('hex');
+      } else {
+        if (!password) throw new Error('Password is required for ADMIN and BISHOP roles');
+        passwordHash = await bcrypt.hash(password, 12);
       }
 
-      const result = await pool.query(
-        `INSERT INTO users (email, password_hash, first_name, last_name, role, parish_id)
-         VALUES ($1, $2, $3, $4, $5, $6)
+      const { rows } = await pool.query(
+        `INSERT INTO users (first_name, last_name, email, password_hash, priest_token,
+                            token_generated_by, role, parish_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
          RETURNING *`,
-        [email || null, passwordHash, firstName, lastName, role, parishId || null]
+        [firstName, lastName, email, passwordHash, priestToken,
+         role === 'PRIEST' ? user.id : null, role, parishId || null]
       );
 
-      const newUser = result.rows[0];
-      await logAuditEvent(user.id, 'CREATE_USER', 'users', newUser.id, null, newUser);
+      const newUser = rows[0];
+      await logAuditEvent(user.id, 'CREATE_USER', 'users', newUser.id, null, {
+        name, email, role, parishId
+      });
 
-      return newUser;
+      // Include priest token in response if just created
+      const mapped = mapUser(newUser);
+      if (priestToken) mapped.priestToken = priestToken;
+      return mapped;
     },
 
-    // ============================================
-    // PRIEST TOKEN MUTATIONS
-    // ============================================
+    deleteUser: async (_, { id }, { user }) => {
+      requireRole(user, 'ADMIN');
+      if (parseInt(id) === user.id) throw new Error('Cannot delete your own account');
 
-    // Generate priest token (ADMIN only)
-    generatePriestToken: async (_, { priestUserId, expiresIn }, context) => {
-      const user = getCurrentUser(context);
-      requireRole(user, ['ADMIN']);
+      const { rows } = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
+      if (!rows[0]) throw new Error('User not found');
 
-      const priestResult = await pool.query('SELECT * FROM users WHERE id = $1', [priestUserId]);
-      const priest = priestResult.rows[0];
-
-      if (!priest) {
-        throw new Error('Priest user not found');
-      }
-
-      if (priest.role !== 'PRIEST') {
-        throw new Error('Can only generate tokens for PRIEST users');
-      }
-
-      const token = generatePriestTokenString();
-      const tokenExpiresAt = expiresIn ? new Date(Date.now() + expiresIn * 1000) : null;
-
-      const updateResult = await pool.query(
-        `UPDATE users 
-         SET priest_token = $1, token_expires_at = $2, updated_at = CURRENT_TIMESTAMP
-         WHERE id = $3
-         RETURNING *`,
-        [token, tokenExpiresAt, priestUserId]
-      );
-
-      await logAuditEvent(
-        user.id,
-        'GENERATE_PRIEST_TOKEN',
-        'users',
-        priestUserId,
-        { priest_token: null },
-        { priest_token: '***hidden***' }
-      );
-
-      return updateResult.rows[0];
+      await pool.query('UPDATE users SET is_active = false, updated_at = NOW() WHERE id = $1', [id]);
+      await logAuditEvent(user.id, 'DELETE_USER', 'users', id, rows[0], null);
+      return true;
     },
 
-    // Rotate priest token (ADMIN only)
-    rotatePriestToken: async (_, { priestUserId, expiresIn }, context) => {
-      const user = getCurrentUser(context);
-      requireRole(user, ['ADMIN']);
+    // Parishes
+    createParish: async (_, { input }, { user }) => {
+      requireRole(user, 'ADMIN');
+      const { name, location, diocese, contactEmail, contactPhone } = input;
 
-      const priestResult = await pool.query('SELECT * FROM users WHERE id = $1', [priestUserId]);
-      const priest = priestResult.rows[0];
-
-      if (!priest || priest.role !== 'PRIEST') {
-        throw new Error('Invalid priest user');
-      }
-
-      const newToken = generatePriestTokenString();
-      const tokenExpiresAt = expiresIn ? new Date(Date.now() + expiresIn * 1000) : null;
-
-      const updateResult = await pool.query(
-        `UPDATE users 
-         SET priest_token = $1, token_expires_at = $2, updated_at = CURRENT_TIMESTAMP
-         WHERE id = $3
-         RETURNING *`,
-        [newToken, tokenExpiresAt, priestUserId]
-      );
-
-      await logAuditEvent(
-        user.id,
-        'ROTATE_PRIEST_TOKEN',
-        'users',
-        priestUserId,
-        { priest_token: '***old***' },
-        { priest_token: '***new***' }
-      );
-
-      return updateResult.rows[0];
-    },
-
-    // Revoke priest token (ADMIN only)
-    revokePriestToken: async (_, { priestUserId }, context) => {
-      const user = getCurrentUser(context);
-      requireRole(user, ['ADMIN']);
-
-      const result = await pool.query(
-        `UPDATE users 
-         SET priest_token = NULL, token_expires_at = NULL, updated_at = CURRENT_TIMESTAMP
-         WHERE id = $1 AND role = $2
-         RETURNING *`,
-        [priestUserId, 'PRIEST']
-      );
-
-      if (result.rows.length === 0) {
-        throw new Error('Priest user not found');
-      }
-
-      await logAuditEvent(
-        user.id,
-        'REVOKE_PRIEST_TOKEN',
-        'users',
-        priestUserId,
-        { priest_token: '***revoked***' },
-        { priest_token: null }
-      );
-
-      return result.rows[0];
-    },
-
-    // ============================================
-    // PARISH MUTATIONS
-    // ============================================
-
-    // Create parish (ADMIN only)
-    createParish: async (_, { name, diocese, location, contactEmail, contactPhone }, context) => {
-      const user = getCurrentUser(context);
-      requireRole(user, ['ADMIN']);
-
-      const result = await pool.query(
-        `INSERT INTO parishes (name, diocese, location, contact_email, contact_phone)
+      const { rows } = await pool.query(
+        `INSERT INTO parishes (name, location, diocese, contact_email, contact_phone)
          VALUES ($1, $2, $3, $4, $5)
          RETURNING *`,
-        [name, diocese, location, contactEmail, contactPhone]
+        [name, location || null, diocese || null, contactEmail || null, contactPhone || null]
       );
 
-      const parish = result.rows[0];
-      await logAuditEvent(user.id, 'CREATE_PARISH', 'parishes', parish.id, null, parish);
-
-      return parish;
+      await logAuditEvent(user.id, 'CREATE_PARISH', 'parishes', rows[0].id, null, input);
+      return mapParish(rows[0]);
     },
 
-    // Update parish (ADMIN only)
-    updateParish: async (_, { id, name, diocese, location, contactEmail, contactPhone }, context) => {
-      const user = getCurrentUser(context);
-      requireRole(user, ['ADMIN']);
+    updateParish: async (_, { id, input }, { user }) => {
+      requireRole(user, 'ADMIN');
 
-      const result = await pool.query(
-        `UPDATE parishes 
-         SET name = COALESCE($1, name),
-             diocese = COALESCE($2, diocese),
-             location = COALESCE($3, location),
-             contact_email = COALESCE($4, contact_email),
-             contact_phone = COALESCE($5, contact_phone),
-             updated_at = CURRENT_TIMESTAMP
+      const { rows: existing } = await pool.query('SELECT * FROM parishes WHERE id = $1', [id]);
+      if (!existing[0]) throw new Error('Parish not found');
+
+      const { name, location, diocese, contactEmail, contactPhone } = input;
+      const updated = {
+        name: name ?? existing[0].name,
+        location: location ?? existing[0].location,
+        diocese: diocese ?? existing[0].diocese,
+        contact_email: contactEmail ?? existing[0].contact_email,
+        contact_phone: contactPhone ?? existing[0].contact_phone,
+      };
+
+      const { rows } = await pool.query(
+        `UPDATE parishes
+         SET name = $1, location = $2, diocese = $3,
+             contact_email = $4, contact_phone = $5, updated_at = NOW()
          WHERE id = $6
          RETURNING *`,
-        [name, diocese, location, contactEmail, contactPhone, id]
+        [updated.name, updated.location, updated.diocese,
+         updated.contact_email, updated.contact_phone, id]
       );
 
-      if (result.rows.length === 0) {
-        throw new Error('Parish not found');
-      }
-
-      await logAuditEvent(user.id, 'UPDATE_PARISH', 'parishes', id, null, result.rows[0]);
-
-      return result.rows[0];
+      await logAuditEvent(user.id, 'UPDATE_PARISH', 'parishes', id, existing[0], input);
+      return mapParish(rows[0]);
     },
 
-    // ============================================
-    // COLLECTION MUTATIONS
-    // ============================================
+    deleteParish: async (_, { id }, { user }) => {
+      requireRole(user, 'ADMIN');
 
-    // Create collection (ADMIN only)
-    createCollection: async (_, { name, description }, context) => {
-      const user = getCurrentUser(context);
-      requireRole(user, ['ADMIN']);
+      const { rows } = await pool.query('SELECT * FROM parishes WHERE id = $1', [id]);
+      if (!rows[0]) throw new Error('Parish not found');
 
-      const result = await pool.query(
-        `INSERT INTO collections (name, description, created_by, is_active)
-         VALUES ($1, $2, $3, true)
+      await pool.query('DELETE FROM parishes WHERE id = $1', [id]);
+      await logAuditEvent(user.id, 'DELETE_PARISH', 'parishes', id, rows[0], null);
+      return true;
+    },
+
+    // Collections (remittance sources)
+    createRemittanceSource: async (_, { input }, { user }) => {
+      requireRole(user, 'ADMIN');
+      const { name, description } = input;
+
+      const { rows } = await pool.query(
+        `INSERT INTO collections (name, description, created_by)
+         VALUES ($1, $2, $3)
          RETURNING *`,
-        [name, description, user.id]
+        [name, description || null, user.id]
       );
 
-      const collection = result.rows[0];
-      await logAuditEvent(user.id, 'CREATE_COLLECTION', 'collections', collection.id, null, collection);
-
-      return collection;
+      await logAuditEvent(user.id, 'CREATE_COLLECTION', 'collections', rows[0].id, null, input);
+      return mapCollection(rows[0]);
     },
 
-    // Update collection (ADMIN only)
-    updateCollection: async (_, { id, name, description, isActive }, context) => {
-      const user = getCurrentUser(context);
-      requireRole(user, ['ADMIN']);
+    toggleRemittanceSource: async (_, { id }, { user }) => {
+      requireRole(user, 'ADMIN');
 
-      const result = await pool.query(
-        `UPDATE collections 
-         SET name = COALESCE($1, name),
-             description = COALESCE($2, description),
-             is_active = COALESCE($3, is_active),
-             updated_at = CURRENT_TIMESTAMP
-         WHERE id = $4
+      const { rows } = await pool.query(
+        `UPDATE collections
+         SET is_active = NOT is_active, updated_at = NOW()
+         WHERE id = $1
          RETURNING *`,
-        [name, description, isActive, id]
-      );
-
-      if (result.rows.length === 0) {
-        throw new Error('Collection not found');
-      }
-
-      await logAuditEvent(user.id, 'UPDATE_COLLECTION', 'collections', id, null, result.rows[0]);
-
-      return result.rows[0];
-    },
-
-    // Delete collection (ADMIN only - soft delete)
-    deleteCollection: async (_, { id }, context) => {
-      const user = getCurrentUser(context);
-      requireRole(user, ['ADMIN']);
-
-      const result = await pool.query(
-        'UPDATE collections SET is_active = false, updated_at = CURRENT_TIMESTAMP WHERE id = $1',
         [id]
       );
 
-      await logAuditEvent(user.id, 'DELETE_COLLECTION', 'collections', id, null, { is_active: false });
-
-      return result.rowCount > 0;
+      if (!rows[0]) throw new Error('Collection not found');
+      await logAuditEvent(user.id, 'TOGGLE_COLLECTION', 'collections', id, null, { isActive: rows[0].is_active });
+      return mapCollection(rows[0]);
     },
 
-    // ============================================
-    // REMITTANCE MUTATIONS
-    // ============================================
+    // Remittance Records
+    createRemittanceRecord: async (_, { input }, { user }) => {
+      requireRole(user, 'ADMIN');
+      const { parishId, year, month, lineItems } = input;
 
-    // Create remittance record (ADMIN only)
-    createRemittanceRecord: async (_, { parishId, year, month, lineItems, notes }, context) => {
-      const user = getCurrentUser(context);
-      requireRole(user, ['ADMIN']);
+      if (!lineItems || lineItems.length === 0) {
+        throw new Error('At least one line item is required');
+      }
 
       const client = await pool.connect();
       try {
         await client.query('BEGIN');
 
-        const recordResult = await client.query(
-          `INSERT INTO remittance_records (parish_id, year, month, uploaded_by, notes)
-           VALUES ($1, $2, $3, $4, $5)
+        const { rows } = await client.query(
+          `INSERT INTO remittance_records (parish_id, year, month, uploaded_by)
+           VALUES ($1, $2, $3, $4)
            RETURNING *`,
-          [parishId, year, month, user.id, notes || null]
+          [parishId, year, month, user.id]
         );
 
-        const record = recordResult.rows[0];
+        const record = rows[0];
+        let totalAmount = 0;
 
         for (const item of lineItems) {
           await client.query(
             `INSERT INTO remittance_line_items (remittance_record_id, collection_id, amount)
              VALUES ($1, $2, $3)`,
-            [record.id, item.collectionId, item.amount]
+            [record.id, item.remittanceSourceId, item.amount]
           );
+          totalAmount += item.amount;
         }
 
-        await logAuditEvent(user.id, 'CREATE_REMITTANCE', 'remittance_records', record.id, null, record);
         await client.query('COMMIT');
 
-        return record;
+        await logAuditEvent(user.id, 'CREATE_REMITTANCE', 'remittance_records', record.id, null, input);
+
+        return {
+          ...mapRemittanceRecord(record),
+          totalAmount,
+        };
       } catch (error) {
         await client.query('ROLLBACK');
+        if (error.code === '23505') {
+          throw new Error('A remittance record already exists for this parish/month/year');
+        }
         throw error;
       } finally {
         client.release();
       }
     },
 
-    // ============================================
-    // DEBTOR MUTATIONS
-    // ============================================
+    deleteRemittanceRecord: async (_, { id }, { user }) => {
+      requireRole(user, 'ADMIN');
 
-    // Create debtor record (ADMIN only)
-    createDebtor: async (_, { parishId, collectionId, year, month, expectedAmount, notes }, context) => {
-      const user = getCurrentUser(context);
-      requireRole(user, ['ADMIN']);
+      const { rows } = await pool.query('SELECT * FROM remittance_records WHERE id = $1', [id]);
+      if (!rows[0]) throw new Error('Record not found');
 
-      const result = await pool.query(
-        `INSERT INTO debtors (parish_id, collection_id, year, month, expected_amount, balance, notes)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
+      await pool.query('DELETE FROM remittance_records WHERE id = $1', [id]);
+      await logAuditEvent(user.id, 'DELETE_REMITTANCE', 'remittance_records', id, rows[0], null);
+      return true;
+    },
+
+    // Debtors
+    updateDebtor: async (_, { id, input }, { user }) => {
+      requireRole(user, 'ADMIN');
+
+      const { rows: existing } = await pool.query('SELECT * FROM debtors WHERE id = $1', [id]);
+      if (!existing[0]) throw new Error('Debtor record not found');
+
+      const prev = existing[0];
+      const expectedAmount = input.expectedAmount ?? parseFloat(prev.expected_amount);
+      const actualAmount = input.actualAmount ?? parseFloat(prev.actual_amount);
+      const balance = expectedAmount - actualAmount;
+      const isPaid = input.isPaid ?? (balance <= 0);
+
+      const { rows } = await pool.query(
+        `UPDATE debtors
+         SET expected_amount = $1, actual_amount = $2, balance = $3,
+             is_paid = $4, notes = $5, updated_at = NOW()
+         WHERE id = $6
          RETURNING *`,
-        [parishId, collectionId, year, month, expectedAmount, expectedAmount, notes]
+        [expectedAmount, actualAmount, balance, isPaid, input.notes ?? prev.notes, id]
       );
 
-      const debtor = result.rows[0];
-      await logAuditEvent(user.id, 'CREATE_DEBTOR', 'debtors', debtor.id, null, debtor);
-
-      return debtor;
+      await logAuditEvent(user.id, 'UPDATE_DEBTOR', 'debtors', id, prev, input);
+      return mapDebtor(rows[0]);
     },
 
-    // Update debtor record (ADMIN only)
-    updateDebtor: async (_, { id, actualAmount, notes }, context) => {
-      const user = getCurrentUser(context);
-      requireRole(user, ['ADMIN']);
+    markAsOverdue: async (_, { parishId, year, month }, { user }) => {
+      requireRole(user, 'ADMIN');
 
-      const currentResult = await pool.query('SELECT * FROM debtors WHERE id = $1', [id]);
-      const current = currentResult.rows[0];
-
-      if (!current) {
-        throw new Error('Debtor record not found');
-      }
-
-      const newBalance = current.expected_amount - (actualAmount || current.actual_amount);
-
-      const result = await pool.query(
-        `UPDATE debtors 
-         SET actual_amount = COALESCE($1, actual_amount),
-             balance = $2,
-             notes = COALESCE($3, notes),
-             updated_at = CURRENT_TIMESTAMP
-         WHERE id = $4
+      // Upsert a debtor record marking this parish/month as unpaid
+      const { rows } = await pool.query(
+        `INSERT INTO debtors (parish_id, collection_id, year, month, expected_amount, actual_amount, balance, is_paid)
+         VALUES ($1, 1, $2, $3, 0, 0, 0, false)
+         ON CONFLICT (parish_id, collection_id, year, month)
+         DO UPDATE SET is_paid = false, updated_at = NOW()
          RETURNING *`,
-        [actualAmount, newBalance, notes, id]
+        [parishId, year, month]
       );
 
-      await logAuditEvent(user.id, 'UPDATE_DEBTOR', 'debtors', id, current, result.rows[0]);
-
-      return result.rows[0];
+      await logAuditEvent(user.id, 'MARK_OVERDUE', 'debtors', rows[0].id, null, { parishId, year, month });
+      return mapDebtor(rows[0]);
     },
-
-    // Mark debtor as paid (ADMIN only)
-    markDebtorAsPaid: async (_, { id }, context) => {
-      const user = getCurrentUser(context);
-      requireRole(user, ['ADMIN']);
-
-      const result = await pool.query(
-        `UPDATE debtors 
-         SET is_paid = true, balance = 0, updated_at = CURRENT_TIMESTAMP
-         WHERE id = $1
-         RETURNING *`,
-        [id]
-      );
-
-      if (result.rows.length === 0) {
-        throw new Error('Debtor record not found');
-      }
-
-      await logAuditEvent(user.id, 'MARK_DEBTOR_PAID', 'debtors', id, null, { is_paid: true });
-
-      return result.rows[0];
-    }
   },
-
-  // ============================================
-  // FIELD RESOLVERS
-  // ============================================
-
-  Parish: {
-    remittanceRecords: async (parish, { year, month }) => {
-      let query = 'SELECT * FROM remittance_records WHERE parish_id = $1';
-      const params = [parish.id];
-
-      if (year) {
-        query += ' AND year = $' + (params.length + 1);
-        params.push(year);
-      }
-
-      if (month) {
-        query += ' AND month = $' + (params.length + 1);
-        params.push(month);
-      }
-
-      const result = await pool.query(query, params);
-      return result.rows;
-    },
-
-    yearlyTotal: async (parish, { year }) => {
-      const result = await pool.query(`
-        SELECT COALESCE(SUM(rli.amount), 0) as total
-        FROM remittance_records rr
-        LEFT JOIN remittance_line_items rli ON rr.id = rli.remittance_record_id
-        WHERE rr.parish_id = $1 AND rr.year = $2
-      `, [parish.id, year]);
-
-      return result.rows[0].total;
-    }
-  },
-
-  RemittanceRecord: {
-    uploadedBy: async (record) => {
-      const result = await pool.query('SELECT * FROM users WHERE id = $1', [record.uploaded_by]);
-      return result.rows[0];
-    },
-
-    lineItems: async (record) => {
-      const result = await pool.query(`
-        SELECT rli.*, c.name, c.description
-        FROM remittance_line_items rli
-        JOIN collections c ON rli.collection_id = c.id
-        WHERE rli.remittance_record_id = $1
-      `, [record.id]);
-
-      return result.rows.map(row => ({
-        id: row.id,
-        collection: {
-          id: row.collection_id,
-          name: row.name,
-          description: row.description
-        },
-        amount: row.amount
-      }));
-    },
-
-    totalAmount: async (record) => {
-      const result = await pool.query(
-        'SELECT COALESCE(SUM(amount), 0) as total FROM remittance_line_items WHERE remittance_record_id = $1',
-        [record.id]
-      );
-      return result.rows[0].total;
-    },
-
-    monthName: (record) => monthToName(record.month)
-  },
-
-  Debtor: {
-    parish: async (debtor) => {
-      const result = await pool.query('SELECT * FROM parishes WHERE id = $1', [debtor.parish_id]);
-      return result.rows[0];
-    },
-
-    collection: async (debtor) => {
-      const result = await pool.query('SELECT * FROM collections WHERE id = $1', [debtor.collection_id]);
-      return result.rows[0];
-    },
-
-    monthName: (debtor) => monthToName(debtor.month)
-  },
-
-  Collection: {
-    createdBy: async (collection) => {
-      if (!collection.created_by) return null;
-      const result = await pool.query('SELECT * FROM users WHERE id = $1', [collection.created_by]);
-      return result.rows[0] || null;
-    }
-  },
-
-  User: {
-    parish: async (user) => {
-      if (!user.parish_id) return null;
-      const result = await pool.query('SELECT * FROM parishes WHERE id = $1', [user.parish_id]);
-      return result.rows[0] || null;
-    }
-  }
 };

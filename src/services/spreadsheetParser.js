@@ -34,8 +34,7 @@ export class SpreadsheetParser {
    * Initialize remittance sources from database
    */
   async initializeRemittanceSources() {
-    const result = await pool.query('SELECT id, name FROM remittance_sources');
-    result.rows.forEach(row => {
+const result = await pool.query('SELECT id, name FROM collections WHERE is_active = true');    result.rows.forEach(row => {
       this.remittanceSources[row.name.toLowerCase()] = row.id;
     });
   }
