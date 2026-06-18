@@ -20,7 +20,7 @@ const NODE_ENV = process.env.NODE_ENV || 'development';
 
 // Configure multer for file uploads
 const upload = multer({
-  dest: 'uploads/',
+  dest: '/tmp/uploads/',
   fileFilter: (req, file, cb) => {
     const allowed = [
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
