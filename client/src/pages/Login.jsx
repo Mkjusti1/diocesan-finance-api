@@ -23,12 +23,12 @@ export function Login() {
   const [error, setError] = useState('');
 
   const [loginMutation, { loading: loadingPassword }] = useMutation(LOGIN, {
-    onCompleted: ({ login: data }) => { login(data.token, data.user); navigate('/'); },
+    onCompleted: ({ login: data }) => { login(data.token, data.user); navigate(data.user.role === 'PRIEST' ? '/remittances' : '/'); },
     onError: (err) => setError(err.message),
   });
 
   const [loginWithToken, { loading: loadingToken }] = useMutation(LOGIN_WITH_TOKEN, {
-    onCompleted: ({ loginWithToken: data }) => { login(data.token, data.user); navigate('/'); },
+    onCompleted: ({ loginWithToken: data }) => { login(data.token, data.user); navigate(data.user.role === 'PRIEST' ? '/remittances' : '/'); },
     onError: (err) => setError(err.message),
   });
 
