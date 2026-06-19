@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation } from '@apollo/client/react';
-import { Church } from 'lucide-react';
+import { Landmark } from 'lucide-react';
 import { LOGIN } from '@/graphql/queries';
 import { useAuth } from '@/context/AuthContext';
 import { gql } from '@apollo/client/core';
@@ -65,7 +65,7 @@ export function Login() {
             width: '36px', height: '36px', borderRadius: '8px',
             backgroundColor: '#D3542A', display: 'flex', alignItems: 'center', justifyContent: 'center'
           }}>
-            <Church size={18} color="white" />
+            <Landmark size={18} color="white" strokeWidth={2} />
           </div>
           <span style={{ color: 'white', fontWeight: 600, fontSize: '14px' }}>Diocesan Finance</span>
         </div>

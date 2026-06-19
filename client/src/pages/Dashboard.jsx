@@ -1,6 +1,6 @@
 import { useQuery } from '@apollo/client/react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
-import { Church, TrendingUp, AlertTriangle, FileText } from 'lucide-react';
+import { TrendingUp, Building2, ReceiptText, ShieldAlert, FileText } from 'lucide-react';
 import { GET_DASHBOARD_STATS } from '@/graphql/queries';
 import { formatCurrency } from '@/lib/utils';
 
@@ -95,11 +95,11 @@ export function Dashboard() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
         <StatCard icon={TrendingUp} label="Total Collected" value={formatCurrency(stats.totalCollectedThisYear)}
           sub={`${YEAR} year to date`} iconBg="#D3542A" borderColor="#D3542A" />
-        <StatCard icon={Church} label="Total Parishes" value={stats.totalParishes}
+        <StatCard icon={Building2} label="Total Parishes" value={stats.totalParishes}
           sub="Registered parishes" iconBg="#C89B6E" borderColor="#C89B6E" />
-        <StatCard icon={FileText} label="Reported This Month" value={stats.parishesReportedThisMonth}
+        <StatCard icon={ReceiptText} label="Reported This Month" value={stats.parishesReportedThisMonth}
           sub={`of ${stats.totalParishes} parishes`} iconBg="#8B4C39" borderColor="#8B4C39" />
-        <StatCard icon={AlertTriangle} label="Outstanding Balance" value={formatCurrency(stats.totalOutstanding)}
+        <StatCard icon={ShieldAlert} label="Outstanding Balance" value={formatCurrency(stats.totalOutstanding)}
           sub="Unpaid remittances" iconBg="#A7A68B" borderColor="#A7A68B" />
       </div>
 
@@ -123,7 +123,7 @@ export function Dashboard() {
 
         {monthly.length === 0 ? (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '200px', flexDirection: 'column', gap: '8px' }}>
-            <FileText size={32} color="#A7A68B" />
+            <ReceiptText size={32} color="#A7A68B" />
             <p style={{ fontSize: '13px', color: '#A7A68B' }}>No data yet for {YEAR}</p>
           </div>
         ) : (

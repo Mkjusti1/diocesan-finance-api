@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation } from '@apollo/client/react';
-import { Plus, Pencil, Trash2, Church, MapPin, Mail, Phone } from 'lucide-react';
+import { Plus, Pencil, Trash2, Building2, MapPin, Mail, Phone } from 'lucide-react';
 import { GET_PARISHES, CREATE_PARISH, UPDATE_PARISH, DELETE_PARISH } from '@/graphql/queries';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/context/AuthContext';
@@ -76,7 +76,7 @@ export function Parishes() {
                   backgroundColor: '#F5E3D7', display: 'flex', alignItems: 'center',
                   justifyContent: 'center', flexShrink: 0
                 }}>
-                  <Church size={18} color="#8B4C39" />
+                  <Building2 size={18} color="#8B4C39" strokeWidth={2} />
                 </div>
                 <div>
                   <p style={{ fontSize: '13px', fontWeight: 700, color: '#1a0a06', marginBottom: '4px' }}>{parish.name}</p>
