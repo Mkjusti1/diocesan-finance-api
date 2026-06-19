@@ -4,92 +4,168 @@ import { useMutation } from '@apollo/client/react';
 import { Church } from 'lucide-react';
 import { LOGIN } from '@/graphql/queries';
 import { useAuth } from '@/context/AuthContext';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { gql } from '@apollo/client/core';
+
+const LOGIN_WITH_TOKEN = gql`
+  mutation LoginWithToken($token: String!) {
+    loginWithToken(token: $token) {
+      token
+      user { id name email role parishId }
+    }
+  }
+`;
 
 export function Login() {
   const navigate = useNavigate();
   const { login } = useAuth();
-  const [form, setForm] = useState({ email: '', password: '' });
+  const [mode, setMode] = useState('password'); // 'password' | 'token'
+  const [form, setForm] = useState({ email: '', password: '', token: '' });
   const [error, setError] = useState('');
 
-  const [loginMutation, { loading }] = useMutation(LOGIN, {
+  const [loginMutation, { loading: loadingPassword }] = useMutation(LOGIN, {
     onCompleted: ({ login: data }) => { login(data.token, data.user); navigate('/'); },
     onError: (err) => setError(err.message),
   });
 
+  const [loginWithToken, { loading: loadingToken }] = useMutation(LOGIN_WITH_TOKEN, {
+    onCompleted: ({ loginWithToken: data }) => { login(data.token, data.user); navigate('/'); },
+    onError: (err) => setError(err.message),
+  });
+
+  const loading = loadingPassword || loadingToken;
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    setError('');
+    if (mode === 'password') {
+      loginMutation({ variables: { input: { email: form.email, password: form.password } } });
+    } else {
+      loginWithToken({ variables: { token: form.token } });
+    }
+  };
+
+  const inputStyle = {
+    width: '100%', height: '42px', borderRadius: '8px',
+    border: '1px solid #F5E3D7', padding: '0 12px',
+    fontSize: '14px', backgroundColor: 'white',
+    outline: 'none', boxSizing: 'border-box', color: '#1a0a06'
+  };
+
   return (
-    <div className="min-h-screen flex" style={{ backgroundColor: '#FFF9F2' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#FFF9F2' }}>
+
       {/* Left panel */}
-      <div className="hidden lg:flex lg:w-1/2 flex-col justify-between p-12" style={{ backgroundColor: '#8B4C39' }}>
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#D3542A' }}>
-            <Church className="h-5 w-5 text-white" />
+      <div style={{
+        width: '45%', minHeight: '100vh', backgroundColor: '#8B4C39',
+        display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+        padding: '48px'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{
+            width: '36px', height: '36px', borderRadius: '8px',
+            backgroundColor: '#D3542A', display: 'flex', alignItems: 'center', justifyContent: 'center'
+          }}>
+            <Church size={18} color="white" />
           </div>
-          <span className="font-semibold text-white">Diocesan Finance</span>
+          <span style={{ color: 'white', fontWeight: 600, fontSize: '14px' }}>Diocesan Finance</span>
         </div>
 
         <div>
-          <p className="text-4xl font-bold text-white leading-snug mb-4">
+          <p style={{ color: 'white', fontSize: '36px', fontWeight: 700, lineHeight: 1.3, marginBottom: '16px' }}>
             Managing God's<br />resources with care
           </p>
-          <p className="text-sm leading-relaxed" style={{ color: '#C89B6E' }}>
+          <p style={{ color: '#C89B6E', fontSize: '14px', lineHeight: 1.7, maxWidth: '360px' }}>
             A complete financial management system for tracking parish remittances, collections, and outstanding balances across the diocese.
           </p>
         </div>
 
-        <div className="grid grid-cols-3 gap-4">
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
           {[['Parishes', 'Tracked'], ['Collections', 'Recorded'], ['Reports', 'Generated']].map(([label, sub]) => (
-            <div key={label} className="rounded-lg p-4" style={{ backgroundColor: 'rgba(255,255,255,0.08)' }}>
-              <p className="text-white font-semibold text-sm">{label}</p>
-              <p className="text-xs mt-0.5" style={{ color: '#C89B6E' }}>{sub}</p>
+            <div key={label} style={{ borderRadius: '10px', padding: '16px', backgroundColor: 'rgba(255,255,255,0.08)' }}>
+              <p style={{ color: 'white', fontWeight: 600, fontSize: '13px', marginBottom: '4px' }}>{label}</p>
+              <p style={{ color: '#C89B6E', fontSize: '11px' }}>{sub}</p>
             </div>
           ))}
         </div>
       </div>
 
       {/* Right panel */}
-      <div className="flex-1 flex items-center justify-center p-8">
-        <div className="w-full max-w-sm">
-          {/* Mobile logo */}
-          <div className="flex items-center gap-3 mb-8 lg:hidden">
-            <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#D3542A' }}>
-              <Church className="h-5 w-5 text-white" />
-            </div>
-            <span className="font-semibold text-foreground">Diocesan Finance</span>
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px 32px' }}>
+        <div style={{ width: '100%', maxWidth: '360px' }}>
+          <h2 style={{ fontSize: '26px', fontWeight: 700, color: '#1a0a06', marginBottom: '8px' }}>Welcome back</h2>
+          <p style={{ fontSize: '14px', color: '#A7A68B', marginBottom: '28px' }}>Sign in to your account to continue</p>
+
+          {/* Toggle */}
+          <div style={{
+            display: 'flex', backgroundColor: '#F5E3D7', borderRadius: '10px',
+            padding: '4px', marginBottom: '24px'
+          }}>
+            {[['password', 'Email & Password'], ['token', 'Priest Token']].map(([m, label]) => (
+              <button key={m} type="button" onClick={() => { setMode(m); setError(''); }}
+                style={{
+                  flex: 1, height: '34px', borderRadius: '7px', border: 'none',
+                  fontSize: '12px', fontWeight: 600, cursor: 'pointer',
+                  transition: 'all 0.15s',
+                  backgroundColor: mode === m ? 'white' : 'transparent',
+                  color: mode === m ? '#8B4C39' : '#A7A68B',
+                  boxShadow: mode === m ? '0 1px 4px rgba(0,0,0,0.1)' : 'none'
+                }}>
+                {label}
+              </button>
+            ))}
           </div>
 
-          <h2 className="text-2xl font-bold text-foreground mb-1">Welcome back</h2>
-          <p className="text-sm mb-8" style={{ color: '#A7A68B' }}>Sign in to your account to continue</p>
-
-          <form onSubmit={(e) => { e.preventDefault(); setError(''); loginMutation({ variables: { input: form } }); }}
-                className="space-y-4">
-            <div>
-              <label className="text-sm font-medium text-foreground block mb-1.5">Email address</label>
-              <Input type="email" placeholder="admin@diocese.com" value={form.email}
-                onChange={e => setForm(f => ({ ...f, email: e.target.value }))} required />
-            </div>
-            <div>
-              <label className="text-sm font-medium text-foreground block mb-1.5">Password</label>
-              <Input type="password" placeholder="••••••••" value={form.password}
-                onChange={e => setForm(f => ({ ...f, password: e.target.value }))} required />
-            </div>
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {mode === 'password' ? (
+              <>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#3d1e12', marginBottom: '6px' }}>
+                    Email address
+                  </label>
+                  <input type="email" placeholder="admin@diocese.com" value={form.email}
+                    onChange={e => setForm(f => ({ ...f, email: e.target.value }))} required style={inputStyle} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#3d1e12', marginBottom: '6px' }}>
+                    Password
+                  </label>
+                  <input type="password" placeholder="••••••••" value={form.password}
+                    onChange={e => setForm(f => ({ ...f, password: e.target.value }))} required style={inputStyle} />
+                </div>
+              </>
+            ) : (
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#3d1e12', marginBottom: '6px' }}>
+                  One-time login token
+                </label>
+                <input type="text" placeholder="Paste your token here" value={form.token}
+                  onChange={e => setForm(f => ({ ...f, token: e.target.value }))} required
+                  style={{ ...inputStyle, fontFamily: 'monospace', fontSize: '12px' }} />
+                <p style={{ fontSize: '12px', color: '#A7A68B', marginTop: '6px' }}>
+                  Your token was provided by the diocesan admin
+                </p>
+              </div>
+            )}
 
             {error && (
-              <div className="text-sm px-3 py-2.5 rounded-lg" style={{ backgroundColor: '#F5E3D7', color: '#8B4C39' }}>
+              <div style={{
+                backgroundColor: '#F5E3D7', color: '#8B4C39',
+                borderRadius: '8px', padding: '10px 14px', fontSize: '13px'
+              }}>
                 {error}
               </div>
             )}
 
-            <Button type="submit" className="w-full h-11 font-semibold" disabled={loading}
-                    style={{ backgroundColor: '#D3542A', color: 'white' }}>
+            <button type="submit" disabled={loading} style={{
+              width: '100%', height: '44px', borderRadius: '8px',
+              backgroundColor: loading ? '#c0795e' : '#D3542A',
+              color: 'white', fontWeight: 600, fontSize: '14px',
+              border: 'none', cursor: loading ? 'not-allowed' : 'pointer',
+              marginTop: '4px'
+            }}>
               {loading ? 'Signing in...' : 'Sign in'}
-            </Button>
+            </button>
           </form>
-
-          <p className="text-xs text-center mt-8" style={{ color: '#A7A68B' }}>
-            Priests: use your one-time token to sign in
-          </p>
         </div>
       </div>
     </div>

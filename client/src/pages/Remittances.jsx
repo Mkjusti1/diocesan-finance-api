@@ -1,26 +1,24 @@
 import { useState } from 'react';
 import { useQuery, useMutation } from '@apollo/client/react';
-import { Plus, Filter, ChevronDown } from 'lucide-react';
+import { Plus, Filter } from 'lucide-react';
 import { GET_REMITTANCE_RECORDS, GET_PARISHES, GET_REMITTANCE_SOURCES, CREATE_REMITTANCE } from '@/graphql/queries';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
 
 const YEAR = new Date().getFullYear();
 const MONTHS = ['','January','February','March','April','May','June','July','August','September','October','November','December'];
 
-function Select({ className, ...props }) {
-  return (
-    <select
-      className={`h-10 rounded-lg border px-3 text-sm bg-white focus:outline-none focus:ring-2 ${className}`}
-      style={{ borderColor: '#F5E3D7', color: '#3d1e12' }}
-      {...props}
-    />
-  );
-}
+const inputStyle = {
+  height: '38px', borderRadius: '8px', border: '1px solid #F5E3D7',
+  padding: '0 12px', fontSize: '13px', backgroundColor: 'white',
+  outline: 'none', color: '#1a0a06'
+};
+
+const selectStyle = {
+  height: '38px', borderRadius: '8px', border: '1px solid #F5E3D7',
+  padding: '0 12px', fontSize: '13px', backgroundColor: 'white',
+  outline: 'none', color: '#1a0a06', cursor: 'pointer'
+};
 
 export function Remittances() {
   const { user } = useAuth();
@@ -30,7 +28,11 @@ export function Remittances() {
   const [form, setForm] = useState({ parishId: '', year: YEAR, month: '', lineItems: {} });
 
   const { data, loading } = useQuery(GET_REMITTANCE_RECORDS, {
-    variables: { year: filters.year, month: filters.month || undefined, parishId: filters.parishId || undefined }
+    variables: {
+      year: filters.year || undefined,
+      month: filters.month ? parseInt(filters.month) : undefined,
+      parishId: filters.parishId || undefined
+    }
   });
   const { data: parishData } = useQuery(GET_PARISHES);
   const { data: sourceData } = useQuery(GET_REMITTANCE_SOURCES);
@@ -42,7 +44,9 @@ export function Remittances() {
       .filter(([, a]) => parseFloat(a) > 0)
       .map(([remittanceSourceId, amount]) => ({ remittanceSourceId, amount: parseFloat(amount) }));
     if (!lineItems.length) return alert('Enter at least one amount');
-    await createRemittance({ variables: { input: { parishId: form.parishId, year: parseInt(form.year), month: parseInt(form.month), lineItems } } });
+    await createRemittance({
+      variables: { input: { parishId: form.parishId, year: parseInt(form.year), month: parseInt(form.month), lineItems } }
+    });
     setModal(false);
     setForm({ parishId: '', year: YEAR, month: '', lineItems: {} });
   };
@@ -50,162 +54,220 @@ export function Remittances() {
   const records = data?.remittanceRecords || [];
 
   return (
-    <div className="space-y-6">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Remittances</h1>
-          <p className="text-sm mt-0.5" style={{ color: '#A7A68B' }}>
-            {records.length} record{records.length !== 1 ? 's' : ''} found
+          <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#1a0a06', marginBottom: '4px' }}>Remittances</h1>
+          <p style={{ fontSize: '13px', color: '#A7A68B' }}>
+            {loading ? 'Loading...' : `${records.length} record${records.length !== 1 ? 's' : ''} found`}
           </p>
         </div>
         {isAdmin && (
-          <Button onClick={() => setModal(true)}
-            className="h-10 px-4 text-sm font-medium text-white rounded-lg flex items-center gap-2"
-            style={{ backgroundColor: '#D3542A' }}>
-            <Plus className="h-4 w-4" /> Record Remittance
-          </Button>
+          <button onClick={() => setModal(true)} style={{
+            display: 'flex', alignItems: 'center', gap: '6px',
+            height: '40px', padding: '0 16px', borderRadius: '8px',
+            backgroundColor: '#D3542A', color: 'white',
+            border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 600
+          }}>
+            <Plus size={15} /> Record Remittance
+          </button>
         )}
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-3 flex-wrap p-4 rounded-xl border bg-white" style={{ borderColor: '#F5E3D7' }}>
-        <Filter className="h-4 w-4 flex-shrink-0" style={{ color: '#A7A68B' }} />
-        <Input
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap',
+        padding: '16px 20px', borderRadius: '10px',
+        backgroundColor: 'white', border: '1px solid #F5E3D7'
+      }}>
+        <Filter size={15} color="#A7A68B" style={{ flexShrink: 0 }} />
+        <input
           type="number" placeholder="Year" value={filters.year}
           onChange={e => setFilters(f => ({ ...f, year: parseInt(e.target.value) }))}
-          className="w-24 h-10 rounded-lg text-sm"
-          style={{ borderColor: '#F5E3D7' }}
+          style={{ ...inputStyle, width: '90px' }}
         />
-        <Select value={filters.month} onChange={e => setFilters(f => ({ ...f, month: e.target.value ? parseInt(e.target.value) : '' }))}>
+        <select value={filters.month}
+          onChange={e => setFilters(f => ({ ...f, month: e.target.value }))}
+          style={selectStyle}>
           <option value="">All Months</option>
-          {MONTHS.slice(1).map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
-        </Select>
-        <Select value={filters.parishId} onChange={e => setFilters(f => ({ ...f, parishId: e.target.value }))}>
+          {MONTHS.slice(1).map((m, i) => <option key={i+1} value={i+1}>{m}</option>)}
+        </select>
+        <select value={filters.parishId}
+          onChange={e => setFilters(f => ({ ...f, parishId: e.target.value }))}
+          style={selectStyle}>
           <option value="">All Parishes</option>
           {parishData?.parishes.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-        </Select>
+        </select>
+        {(filters.month || filters.parishId) && (
+          <button onClick={() => setFilters({ year: YEAR, month: '', parishId: '' })}
+            style={{ fontSize: '12px', color: '#D3542A', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>
+            Clear filters
+          </button>
+        )}
       </div>
 
       {/* Table */}
-      <Card>
-        <CardContent className="p-0">
-          {loading ? (
-            <div className="py-16 text-center text-sm" style={{ color: '#A7A68B' }}>Loading records...</div>
-          ) : records.length === 0 ? (
-            <div className="py-16 text-center">
-              <p className="text-sm font-medium" style={{ color: '#8B4C39' }}>No records found</p>
-              <p className="text-xs mt-1" style={{ color: '#A7A68B' }}>Try adjusting your filters</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr style={{ backgroundColor: '#FFF9F2', borderBottom: '1px solid #F5E3D7' }}>
-                    {['Parish', 'Period', 'Collections', 'Total', 'Uploaded By'].map(h => (
-                      <th key={h} className="text-left py-3.5 px-6 text-xs font-semibold uppercase tracking-wide" style={{ color: '#A7A68B' }}>
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y" style={{ '--tw-divide-opacity': 1, borderColor: '#F5E3D7' }}>
-                  {records.map((r, idx) => (
-                    <tr key={r.id} className="transition-colors hover:bg-amber-50/30"
-                        style={{ borderBottomColor: '#F5E3D7' }}>
-                      <td className="py-4 px-6">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
-                               style={{ backgroundColor: '#F5E3D7', color: '#8B4C39' }}>
-                            {r.parish.name.charAt(0)}
-                          </div>
-                          <span className="text-sm font-semibold text-foreground">{r.parish.name}</span>
-                        </div>
-                      </td>
-                      <td className="py-4 px-6">
-                        <span className="text-sm text-foreground">{r.monthName} {r.year}</span>
-                      </td>
-                      <td className="py-4 px-6">
-                        <div className="flex flex-wrap gap-1.5">
-                          {r.lineItems.map((item, i) => (
-                            <Badge key={i} variant="secondary" className="text-xs">
-                              {item.source.name}: {formatCurrency(item.amount)}
-                            </Badge>
-                          ))}
-                        </div>
-                      </td>
-                      <td className="py-4 px-6">
-                        <span className="text-sm font-bold" style={{ color: '#D3542A' }}>
-                          {formatCurrency(r.totalAmount)}
-                        </span>
-                      </td>
-                      <td className="py-4 px-6">
-                        <span className="text-sm" style={{ color: '#A7A68B' }}>
-                          {r.uploadedBy?.name || '—'}
-                        </span>
-                      </td>
-                    </tr>
+      <div style={{
+        backgroundColor: 'white', borderRadius: '12px',
+        border: '1px solid #F5E3D7', overflow: 'hidden',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
+      }}>
+        {loading ? (
+          <div style={{ padding: '60px', textAlign: 'center', fontSize: '13px', color: '#A7A68B' }}>Loading records...</div>
+        ) : records.length === 0 ? (
+          <div style={{ padding: '60px', textAlign: 'center' }}>
+            <p style={{ fontSize: '14px', fontWeight: 600, color: '#8B4C39', marginBottom: '4px' }}>No records found</p>
+            <p style={{ fontSize: '12px', color: '#A7A68B' }}>Try adjusting your filters</p>
+          </div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ backgroundColor: '#FFF9F2', borderBottom: '2px solid #F5E3D7' }}>
+                  {['Parish', 'Period', 'Collections', 'Total', 'Uploaded By'].map(h => (
+                    <th key={h} style={{
+                      textAlign: 'left', padding: '12px 20px',
+                      fontSize: '11px', fontWeight: 700, color: '#A7A68B',
+                      textTransform: 'uppercase', letterSpacing: '0.06em',
+                      whiteSpace: 'nowrap'
+                    }}>{h}</th>
                   ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                </tr>
+              </thead>
+              <tbody>
+                {records.map((r, idx) => (
+                  <tr key={r.id} style={{
+                    borderBottom: idx < records.length - 1 ? '1px solid #F5E3D7' : 'none',
+                    transition: 'background-color 0.1s'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.backgroundColor = '#FFF9F2'}
+                  onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                  >
+                    {/* Parish */}
+                    <td style={{ padding: '14px 20px', whiteSpace: 'nowrap' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div style={{
+                          width: '32px', height: '32px', borderRadius: '50%', flexShrink: 0,
+                          backgroundColor: '#F5E3D7', display: 'flex', alignItems: 'center',
+                          justifyContent: 'center', fontSize: '12px', fontWeight: 700, color: '#8B4C39'
+                        }}>
+                          {r.parish.name.charAt(0)}
+                        </div>
+                        <span style={{ fontSize: '13px', fontWeight: 600, color: '#1a0a06' }}>{r.parish.name}</span>
+                      </div>
+                    </td>
+                    {/* Period */}
+                    <td style={{ padding: '14px 20px', fontSize: '13px', color: '#3d1e12', whiteSpace: 'nowrap' }}>
+                      {r.monthName} {r.year}
+                    </td>
+                    {/* Collections */}
+                    <td style={{ padding: '14px 20px' }}>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                        {r.lineItems.map((item, i) => (
+                          <span key={i} style={{
+                            fontSize: '11px', fontWeight: 600, padding: '3px 8px',
+                            borderRadius: '20px', backgroundColor: '#F5E3D7', color: '#8B4C39',
+                            whiteSpace: 'nowrap'
+                          }}>
+                            {item.source.name}: {formatCurrency(item.amount)}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                    {/* Total */}
+                    <td style={{ padding: '14px 20px', whiteSpace: 'nowrap' }}>
+                      <span style={{ fontSize: '14px', fontWeight: 700, color: '#D3542A' }}>
+                        {formatCurrency(r.totalAmount)}
+                      </span>
+                    </td>
+                    {/* Uploaded by */}
+                    <td style={{ padding: '14px 20px', fontSize: '13px', color: '#A7A68B', whiteSpace: 'nowrap' }}>
+                      {r.uploadedBy?.name || '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
 
       {/* Modal */}
       {modal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="px-6 py-5 border-b" style={{ borderColor: '#F5E3D7' }}>
-              <h2 className="text-base font-bold" style={{ color: '#8B4C39' }}>Record Remittance</h2>
-              <p className="text-xs mt-0.5" style={{ color: '#A7A68B' }}>Enter collection amounts for a parish</p>
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 50,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px',
+          backgroundColor: 'rgba(0,0,0,0.4)'
+        }}>
+          <div style={{
+            backgroundColor: 'white', borderRadius: '16px',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.15)',
+            width: '100%', maxWidth: '500px', maxHeight: '90vh', overflowY: 'auto'
+          }}>
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid #F5E3D7', position: 'sticky', top: 0, backgroundColor: 'white' }}>
+              <p style={{ fontSize: '15px', fontWeight: 700, color: '#8B4C39' }}>Record Remittance</p>
+              <p style={{ fontSize: '12px', color: '#A7A68B', marginTop: '2px' }}>Enter collection amounts for a parish</p>
             </div>
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-3">
+            <form onSubmit={handleSubmit} style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
-                  <label className="text-xs font-semibold uppercase tracking-wide block mb-1.5" style={{ color: '#8B4C39' }}>Parish *</label>
-                  <Select className="w-full" value={form.parishId} onChange={e => setForm(f => ({ ...f, parishId: e.target.value }))} required>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#8B4C39', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Parish *</label>
+                  <select value={form.parishId} onChange={e => setForm(f => ({ ...f, parishId: e.target.value }))} required
+                    style={{ ...selectStyle, width: '100%', boxSizing: 'border-box' }}>
                     <option value="">Select parish</option>
                     {parishData?.parishes.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                  </Select>
+                  </select>
                 </div>
                 <div>
-                  <label className="text-xs font-semibold uppercase tracking-wide block mb-1.5" style={{ color: '#8B4C39' }}>Year *</label>
-                  <Input type="number" value={form.year} onChange={e => setForm(f => ({ ...f, year: e.target.value }))} required
-                    className="h-10 rounded-lg" style={{ borderColor: '#F5E3D7' }} />
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#8B4C39', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Year *</label>
+                  <input type="number" value={form.year} onChange={e => setForm(f => ({ ...f, year: e.target.value }))} required
+                    style={{ ...inputStyle, width: '100%', boxSizing: 'border-box' }} />
                 </div>
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wide block mb-1.5" style={{ color: '#8B4C39' }}>Month *</label>
-                <Select className="w-full" value={form.month} onChange={e => setForm(f => ({ ...f, month: e.target.value }))} required>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#8B4C39', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Month *</label>
+                <select value={form.month} onChange={e => setForm(f => ({ ...f, month: e.target.value }))} required
+                  style={{ ...selectStyle, width: '100%', boxSizing: 'border-box' }}>
                   <option value="">Select month</option>
-                  {MONTHS.slice(1).map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
-                </Select>
+                  {MONTHS.slice(1).map((m, i) => <option key={i+1} value={i+1}>{m}</option>)}
+                </select>
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wide block mb-3" style={{ color: '#8B4C39' }}>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#8B4C39', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '10px' }}>
                   Amounts by Collection
                 </label>
-                <div className="rounded-xl overflow-hidden border" style={{ borderColor: '#F5E3D7' }}>
+                <div style={{ borderRadius: '10px', overflow: 'hidden', border: '1px solid #F5E3D7' }}>
                   {sourceData?.remittanceSources.map((s, idx) => (
-                    <div key={s.id} className="flex items-center gap-4 px-4 py-3"
-                         style={{ backgroundColor: idx % 2 === 0 ? '#FFF9F2' : 'white', borderBottom: idx < sourceData.remittanceSources.length - 1 ? '1px solid #F5E3D7' : 'none' }}>
-                      <span className="text-sm font-medium flex-1" style={{ color: '#8B4C39' }}>{s.name}</span>
-                      <Input type="number" min="0" step="0.01" placeholder="0"
+                    <div key={s.id} style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      padding: '10px 16px',
+                      backgroundColor: idx % 2 === 0 ? '#FFF9F2' : 'white',
+                      borderBottom: idx < sourceData.remittanceSources.length - 1 ? '1px solid #F5E3D7' : 'none'
+                    }}>
+                      <span style={{ fontSize: '13px', fontWeight: 500, color: '#8B4C39' }}>{s.name}</span>
+                      <input
+                        type="number" min="0" step="0.01" placeholder="0"
                         value={form.lineItems[s.id] || ''}
                         onChange={e => setForm(f => ({ ...f, lineItems: { ...f.lineItems, [s.id]: e.target.value } }))}
-                        className="w-36 h-9 text-right text-sm rounded-lg" style={{ borderColor: '#F5E3D7' }} />
+                        style={{ ...inputStyle, width: '130px', textAlign: 'right', boxSizing: 'border-box' }}
+                      />
                     </div>
                   ))}
                 </div>
               </div>
-              <div className="flex gap-3 pt-2">
-                <Button type="submit" className="flex-1 h-11 font-semibold text-white rounded-lg"
-                  style={{ backgroundColor: '#D3542A' }}>Save Record</Button>
-                <Button type="button" variant="outline" className="flex-1 h-11 rounded-lg"
-                  style={{ borderColor: '#F5E3D7', color: '#8B4C39' }}
-                  onClick={() => setModal(false)}>Cancel</Button>
+              <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
+                <button type="submit" style={{
+                  flex: 1, height: '42px', borderRadius: '8px',
+                  backgroundColor: '#D3542A', color: 'white',
+                  border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 600
+                }}>Save Record</button>
+                <button type="button" onClick={() => setModal(false)} style={{
+                  flex: 1, height: '42px', borderRadius: '8px',
+                  backgroundColor: 'white', color: '#8B4C39',
+                  border: '1px solid #F5E3D7', cursor: 'pointer', fontSize: '13px', fontWeight: 600
+                }}>Cancel</button>
               </div>
             </form>
           </div>

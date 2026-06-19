@@ -6,10 +6,10 @@ export function AppLayout() {
   const { isAuthenticated } = useAuth();
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   return (
-    <div className="flex min-h-screen" style={{ backgroundColor: '#FFF9F2' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#FFF9F2' }}>
       <Sidebar />
-      <main className="flex-1 overflow-auto">
-        <div className="p-8 max-w-7xl">
+      <main style={{ flex: 1, overflowY: 'auto' }}>
+        <div style={{ padding: '40px', maxWidth: '1280px' }}>
           <Outlet />
         </div>
       </main>
