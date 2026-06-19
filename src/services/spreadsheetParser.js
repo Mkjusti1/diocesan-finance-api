@@ -317,17 +317,25 @@ export async function processUpload(filePath, year, fileType = 'xlsx', uploadedB
   const parser = new SpreadsheetParser(filePath);
   await parser.initializeRemittanceSources();
 
-  let records = [];
+  let rawRecords = [];
 
   if (fileType === 'xlsx') {
-    records = await parser.parseExcelByMonth(year);
+    rawRecords = await parser.parseExcelByMonth(year);
   } else if (fileType === 'csv') {
-    records = await parser.parseCSV(year);
+    rawRecords = await parser.parseCSV(year);
   } else {
     throw new Error('Unsupported file type');
   }
 
-  // Validate
+  // Resolve parish IDs before validation
+  const records = [];
+  for (const raw of rawRecords) {
+    if (!raw.parishName) continue;
+    const resolved = await parser.createRecord(raw.parishName, raw.year, raw.month, raw.lineItems);
+    if (resolved) records.push(resolved);
+  }
+
+  // Validate with resolved parishIds
   const validation = parser.validate(records);
   if (!validation.isValid) {
     throw new Error(`Validation failed: ${validation.errors.join('; ')}`);
@@ -353,7 +361,7 @@ export async function processUpload(filePath, year, fileType = 'xlsx', uploadedB
       // Insert line items
       for (const item of record.lineItems) {
         await client.query(
-          `INSERT INTO remittance_line_items (remittance_record_id, remittance_source_id, amount)
+          `INSERT INTO remittance_line_items (remittance_record_id, collection_id, amount)
            VALUES ($1, $2, $3)`,
           [remittanceRecord.id, item.sourceId, item.amount]
         );

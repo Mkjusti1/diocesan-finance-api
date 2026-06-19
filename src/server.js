@@ -24,9 +24,12 @@ const upload = multer({
   fileFilter: (req, file, cb) => {
     const allowed = [
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'text/csv'
+      'application/vnd.ms-excel',
+      'application/octet-stream',
+      'text/csv',
+      'application/csv'
     ];
-    if (allowed.includes(file.mimetype)) {
+    console.log('Upload mimetype:', file.mimetype); if (allowed.includes(file.mimetype)) {
       cb(null, true);
     } else {
       cb(new Error('Only XLSX and CSV files are allowed'));
@@ -127,7 +130,7 @@ app.post('/api/upload', authenticateToken, upload.single('file'), async (req, re
     }
 
     // Determine file type
-    const fileType = req.file.mimetype.includes('spreadsheet') ? 'xlsx' : 'csv';
+    const fileExt = req.file.originalname.split('.').pop().toLowerCase(); const fileType = fileExt === 'xlsx' ? 'xlsx' : 'csv';
 
     // Process upload
     const records = await processUpload(
