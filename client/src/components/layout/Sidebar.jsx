@@ -1,7 +1,7 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Building2, ReceiptText,
-  Users, ShieldAlert, LogOut, Landmark
+  Users, ShieldAlert, LogOut, Landmark, UploadCloud
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
@@ -11,10 +11,12 @@ const navItems = [
   { to: '/remittances', icon: ReceiptText, label: 'Remittances', roles: ['ADMIN','BISHOP','PRIEST'] },
   { to: '/debtors', icon: ShieldAlert, label: 'Debtors', roles: ['ADMIN','BISHOP'] },
   { to: '/users', icon: Users, label: 'Users', roles: ['ADMIN'] },
+  { to: '/upload', icon: UploadCloud, label: 'Upload', roles: ['ADMIN'] },
 ];
 
 export function Sidebar() {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const allowed = navItems.filter(i => i.roles.includes(user?.role));
 
   return (
@@ -70,10 +72,16 @@ export function Sidebar() {
 
       {/* User */}
       <div style={{ padding: '12px' }}>
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: '10px',
-          padding: '10px 12px', marginBottom: '2px'
-        }}>
+        <div
+          onClick={() => navigate('/profile')}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '10px',
+            padding: '10px 12px', marginBottom: '2px',
+            cursor: 'pointer', borderRadius: '8px', transition: 'all 0.15s'
+          }}
+          onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.08)'}
+          onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+        >
           <div style={{
             width: '34px', height: '34px', borderRadius: '50%',
             backgroundColor: '#C89B6E', display: 'flex', alignItems: 'center',

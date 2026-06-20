@@ -9,6 +9,9 @@ import { Parishes } from '@/pages/Parishes';
 import { Remittances } from '@/pages/Remittances';
 import { Debtors } from '@/pages/Debtors';
 import { Users } from '@/pages/Users';
+import { UploadPage } from '@/pages/Upload';
+import { ParishDetail } from '@/pages/ParishDetail';
+import { Profile } from '@/pages/Profile';
 export default function App() {
   return (
     <ApolloProvider client={client}>
@@ -22,6 +25,9 @@ export default function App() {
               <Route path="/remittances" element={<Remittances />} />
               <Route path="/debtors" element={<Debtors />} />
               <Route path="/users" element={<Users />} />
+              <Route path="/upload" element={<UploadPage />} />
+              <Route path="/parishes/:id" element={<ParishDetail />} />
+              <Route path="/profile" element={<Profile />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation } from '@apollo/client/react';
 import { Plus, Filter } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { GET_REMITTANCE_RECORDS, GET_PARISHES, GET_REMITTANCE_SOURCES, CREATE_REMITTANCE } from '@/graphql/queries';
 import { formatCurrency } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
@@ -22,6 +23,7 @@ const selectStyle = {
 
 export function Remittances() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const isAdmin = user?.role === 'ADMIN';
   const [filters, setFilters] = useState({ year: YEAR, month: '', parishId: '' });
   const [modal, setModal] = useState(false);
@@ -69,6 +71,16 @@ export function Remittances() {
             {loading ? 'Loading...' : `${records.length} record${records.length !== 1 ? 's' : ''} found`}
           </p>
         </div>
+        {user?.role === 'PRIEST' && user?.parishId && (
+          <button onClick={() => navigate(`/parishes/${user.parishId}`)} style={{
+            display: 'flex', alignItems: 'center', gap: '6px',
+            height: '40px', padding: '0 16px', borderRadius: '8px',
+            backgroundColor: '#8B4C39', color: 'white',
+            border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 600
+          }}>
+            View My Parish
+          </button>
+        )}
         {isAdmin && (
           <button onClick={() => setModal(true)} style={{
             display: 'flex', alignItems: 'center', gap: '6px',
@@ -160,7 +172,12 @@ export function Remittances() {
                         }}>
                           {r.parish.name.charAt(0)}
                         </div>
-                        <span style={{ fontSize: '13px', fontWeight: 600, color: '#1a0a06' }}>{r.parish.name}</span>
+                        <span
+                          onClick={() => navigate(`/parishes/${r.parish.id}`)}
+                          style={{ fontSize: '13px', fontWeight: 600, color: '#1a0a06', cursor: 'pointer' }}
+                          onMouseEnter={e => e.target.style.color = '#D3542A'}
+                          onMouseLeave={e => e.target.style.color = '#1a0a06'}
+                        >{r.parish.name}</span>
                       </div>
                     </td>
                     {/* Period */}

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation } from '@apollo/client/react';
 import { Plus, Pencil, Trash2, Building2, MapPin, Mail, Phone } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { GET_PARISHES, CREATE_PARISH, UPDATE_PARISH, DELETE_PARISH } from '@/graphql/queries';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/context/AuthContext';
@@ -14,6 +15,7 @@ export function Parishes() {
   const [selected, setSelected] = useState(null);
   const [form, setForm] = useState(EMPTY);
 
+  const navigate = useNavigate();
   const { data, loading } = useQuery(GET_PARISHES);
   const [createParish] = useMutation(CREATE_PARISH, { refetchQueries: [GET_PARISHES] });
   const [updateParish] = useMutation(UPDATE_PARISH, { refetchQueries: [GET_PARISHES] });
@@ -79,7 +81,12 @@ export function Parishes() {
                   <Building2 size={18} color="#8B4C39" strokeWidth={2} />
                 </div>
                 <div>
-                  <p style={{ fontSize: '13px', fontWeight: 700, color: '#1a0a06', marginBottom: '4px' }}>{parish.name}</p>
+                  <p
+                    onClick={() => navigate(`/parishes/${parish.id}`)}
+                    style={{ fontSize: '13px', fontWeight: 700, color: '#1a0a06', marginBottom: '4px', cursor: 'pointer' }}
+                    onMouseEnter={e => e.target.style.color = '#D3542A'}
+                    onMouseLeave={e => e.target.style.color = '#1a0a06'}
+                  >{parish.name}</p>
                   {parish.diocese && (
                     <span style={{
                       fontSize: '11px', fontWeight: 600, padding: '2px 8px',

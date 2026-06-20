@@ -9,7 +9,7 @@ import cors from 'cors';
 import multer from 'multer';
 import { typeDefs } from './graphql/typeDefs.js';
 import { resolvers } from './graphql/resolvers.js';
-import { processUpload } from './services/spreadsheetParser.js';
+import { processUpload, previewUpload, parseHorizontalCSV, SpreadsheetParser, generateDebtors } from './services/spreadsheetParser.js';
 import { pool } from './db/pool.js';
 
 dotenv.config();
@@ -111,6 +111,141 @@ app.get('/health', (req, res) => {
   });
 });
 
+
+// REST endpoint for upload preview (dry run)
+app.post('/api/upload/preview', authenticateToken, upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+    if (req.user.role !== 'ADMIN') return res.status(403).json({ error: 'Only admins can upload files' });
+
+    const { year } = req.body;
+    if (!year) return res.status(400).json({ error: 'Year is required' });
+
+    const fileExt = req.file.originalname.split('.').pop().toLowerCase();
+    const fileType = fileExt === 'xlsx' ? 'xlsx' : 'csv';
+
+    const preview = await previewUpload(req.file.path, parseInt(year), fileType, req.user.id);
+
+    await fs.unlink(req.file.path).catch(() => {});
+    res.json({ success: true, preview });
+  } catch (error) {
+    if (req.file) await fs.unlink(req.file.path).catch(() => {});
+    res.status(400).json({ error: error.message || 'Preview failed' });
+  }
+});
+
+
+// Upload horizontal CSV (one row per parish, columns are months)
+app.post('/api/upload/horizontal', authenticateToken, upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+    if (req.user.role !== 'ADMIN') return res.status(403).json({ error: 'Only admins can upload files' });
+
+    const { year, collectionName } = req.body;
+    if (!year) return res.status(400).json({ error: 'Year is required' });
+
+    // Parse the horizontal CSV
+    const rawRecords = await parseHorizontalCSV(
+      req.file.path, parseInt(year), collectionName || 'General Collection', req.user.id
+    );
+
+    if (rawRecords.length === 0) {
+      await fs.unlink(req.file.path).catch(() => {});
+      return res.status(400).json({ error: 'No valid records found in file. Check that your CSV has month columns (JAN, FEB...) and a parish name column.' });
+    }
+
+    // Use already-imported pool and parser — no dynamic imports
+    const parser = new SpreadsheetParser(req.file.path);
+    await parser.initializeCollections();
+
+    // Pre-resolve all parishes and collections outside the transaction
+    // to avoid holding the transaction open too long
+    const parishCache = {};
+    const collectionCache = {};
+    const summary = { inserted: 0, skipped: 0, newParishes: [], newCollections: [] };
+
+    for (const record of rawRecords) {
+      if (!parishCache[record.parishName]) {
+        const result = await parser.ensureParish(record.parishName);
+        parishCache[record.parishName] = result.id;
+        if (result.created && !summary.newParishes.includes(record.parishName)) {
+          summary.newParishes.push(record.parishName);
+        }
+      }
+      if (!collectionCache[record.collectionName]) {
+        const result = await parser.ensureCollection(record.collectionName, req.user.id);
+        collectionCache[record.collectionName] = result.id;
+        if (result.created && !summary.newCollections.includes(record.collectionName)) {
+          summary.newCollections.push(record.collectionName);
+        }
+      }
+    }
+
+    // Now insert in batches using a single client
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      for (const record of rawRecords) {
+        const parishId = parishCache[record.parishName];
+        const collectionId = collectionCache[record.collectionName];
+
+        // Check for existing record
+        const existing = await client.query(
+          'SELECT id FROM remittance_records WHERE parish_id = $1 AND year = $2 AND month = $3',
+          [parishId, record.year, record.month]
+        );
+
+        let remittanceId;
+
+        if (existing.rows.length > 0) {
+          remittanceId = existing.rows[0].id;
+          // Check if line item already exists
+          const existingLine = await client.query(
+            'SELECT id FROM remittance_line_items WHERE remittance_record_id = $1 AND collection_id = $2',
+            [remittanceId, collectionId]
+          );
+          if (existingLine.rows.length > 0) {
+            summary.skipped++;
+            continue;
+          }
+        } else {
+          // Insert new remittance record
+          const { rows } = await client.query(
+            'INSERT INTO remittance_records (parish_id, year, month, uploaded_by) VALUES ($1, $2, $3, $4) RETURNING id',
+            [parishId, record.year, record.month, req.user.id]
+          );
+          remittanceId = rows[0].id;
+        }
+
+        // Insert line item
+        await client.query(
+          'INSERT INTO remittance_line_items (remittance_record_id, collection_id, amount) VALUES ($1, $2, $3)',
+          [remittanceId, collectionId, record.amount]
+        );
+        summary.inserted++;
+      }
+
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+
+    // Generate debtors after releasing the client
+    await generateDebtors(parseInt(year), req.user.id);
+    await fs.unlink(req.file.path).catch(() => {});
+
+    res.json({ success: true, summary, message: `Inserted ${summary.inserted} records` });
+  } catch (error) {
+    if (req.file) await fs.unlink(req.file.path).catch(() => {});
+    console.error('Horizontal upload error:', error);
+    res.status(400).json({ error: error.message || 'Upload failed' });
+  }
+});
+
 // REST endpoint for file upload
 app.post('/api/upload', authenticateToken, upload.single('file'), async (req, res) => {
   try {
@@ -133,7 +268,7 @@ app.post('/api/upload', authenticateToken, upload.single('file'), async (req, re
     const fileExt = req.file.originalname.split('.').pop().toLowerCase(); const fileType = fileExt === 'xlsx' ? 'xlsx' : 'csv';
 
     // Process upload
-    const records = await processUpload(
+    const result = await processUpload(
       req.file.path,
       parseInt(year),
       fileType,
@@ -146,9 +281,10 @@ app.post('/api/upload', authenticateToken, upload.single('file'), async (req, re
 
     res.json({
       success: true,
-      message: `Successfully uploaded ${records.length} records`,
-      recordCount: records.length,
-      records: records.map(r => ({
+      message: `Successfully uploaded ${result.summary.inserted} records`,
+      recordCount: result.summary.inserted,
+      summary: result.summary,
+      records: result.records.map(r => ({
         id: r.id,
         parishId: r.parish_id,
         year: r.year,

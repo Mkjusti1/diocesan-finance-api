@@ -42,7 +42,10 @@ function mapUser(row) {
     email: row.email,
     role: row.role,
     parishId: row.parish_id,
+    priestToken: row.priest_token || null,
     createdAt: row.created_at?.toISOString(),
+    // Pre-resolved parish if available from JOIN
+    _parish: row.parish_name ? { id: row.parish_id, name: row.parish_name } : null,
   };
 }
 
@@ -113,6 +116,7 @@ export const resolvers = {
   User: {
     parish: async (parent) => {
       if (!parent.parishId) return null;
+      if (parent._parish) return parent._parish;
       const { rows } = await pool.query('SELECT * FROM parishes WHERE id = $1', [parent.parishId]);
       return mapParish(rows[0]);
     },
@@ -190,9 +194,11 @@ export const resolvers = {
 
     parish: async (_, { id }, { user }) => {
       requireAuth(user);
-      // PRIEST can only view their own parish
-      if (user.role === 'PRIEST' && user.parishId !== parseInt(id)) {
-        throw new Error('FORBIDDEN: You can only view your own parish');
+      // PRIEST can only view their own parish — force to their parish
+      if (user.role === 'PRIEST') {
+        if (user.parishId !== parseInt(id)) {
+          throw new Error('FORBIDDEN: You can only view your own parish');
+        }
       }
       const { rows } = await pool.query('SELECT * FROM parishes WHERE id = $1', [id]);
       return mapParish(rows[0]);
@@ -211,9 +217,13 @@ export const resolvers = {
     remittanceRecords: async (_, { year, month, parishId }, { user }) => {
       requireAuth(user);
 
-      // PRIEST can only see their own parish
+      // PRIEST is always forced to their own parish — ignore any parishId argument
       if (user.role === 'PRIEST') {
+        if (!user.parishId) throw new Error('No parish assigned to your account');
         parishId = user.parishId;
+        // Remove year/month filters so they see ALL years and months
+        year = undefined;
+        month = undefined;
       }
 
       let query = `
@@ -402,6 +412,20 @@ export const resolvers = {
         monthsReported: parseInt(row.months_reported),
         lastReported: row.last_reported?.toISOString() || null,
         outstandingBalance: parseFloat(row.outstanding_balance),
+      }));
+    },
+
+    allUsers: async (_, __, { user }) => {
+      requireRole(user, 'ADMIN');
+      const { rows } = await pool.query(
+        `SELECT u.*, p.name as parish_name
+         FROM users u
+         LEFT JOIN parishes p ON u.parish_id = p.id
+         ORDER BY u.role, u.first_name`
+      );
+      return rows.map(row => ({
+        ...mapUser(row),
+        parish: row.parish_name ? { id: row.parish_id, name: row.parish_name } : null
       }));
     },
 
@@ -722,6 +746,18 @@ export const resolvers = {
 
       await logAuditEvent(user.id, 'UPDATE_DEBTOR', 'debtors', id, prev, input);
       return mapDebtor(rows[0]);
+    },
+
+    adminResetPassword: async (_, { userId, newPassword }, { user }) => {
+      requireRole(user, 'ADMIN');
+      if (newPassword.length < 6) throw new Error('Password must be at least 6 characters');
+      const hash = await bcrypt.hash(newPassword, 12);
+      await pool.query(
+        'UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2',
+        [hash, userId]
+      );
+      await logAuditEvent(user.id, 'ADMIN_RESET_PASSWORD', 'users', userId, null, null);
+      return true;
     },
 
     markAsOverdue: async (_, { parishId, year, month }, { user }) => {

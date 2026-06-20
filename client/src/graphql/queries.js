@@ -1,8 +1,16 @@
 import { gql } from '@apollo/client/core';
 export const LOGIN = gql`mutation Login($input: LoginInput!) { login(input: $input) { token user { id name email role parishId } } }`;
 export const GET_DASHBOARD_STATS = gql`query DashboardStats($year: Int!) {
-  dashboardStats(year: $year) { totalCollectedThisYear totalParishes parishesReportedThisMonth totalOutstanding recentActivity { id monthName totalAmount parish { name } } }
+  dashboardStats(year: $year) {
+    totalCollectedThisYear totalParishes parishesReportedThisMonth totalOutstanding
+    recentActivity { id monthName totalAmount parish { name } }
+  }
   monthlySummary(year: $year) { month monthName totalCollected parishCount }
+  parishSummaries(year: $year) {
+    parish { id name }
+    totalCollected monthsReported lastReported outstandingBalance
+  }
+  remittanceSources { id name }
 }`;
 export const GET_PARISHES = gql`query GetParishes { parishes { id name diocese location contactEmail contactPhone } }`;
 export const CREATE_PARISH = gql`mutation CreateParish($input: CreateParishInput!) { createParish(input: $input) { id name diocese location contactEmail contactPhone } }`;

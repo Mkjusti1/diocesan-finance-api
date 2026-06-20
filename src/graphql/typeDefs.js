@@ -176,6 +176,7 @@ export const typeDefs = gql`
     monthlySummary(year: Int!): [MonthlySummary!]!
     parishSummaries(year: Int!): [ParishSummary!]!
     auditLogs(limit: Int): [AuditLog!]!
+    allUsers: [User!]!
   }
 
   type Mutation {
@@ -193,5 +194,6 @@ export const typeDefs = gql`
     deleteRemittanceRecord(id: ID!): Boolean!
     updateDebtor(id: ID!, input: UpdateDebtorInput!): Debtor!
     markAsOverdue(parishId: ID!, year: Int!, month: Int!): Debtor!
+    adminResetPassword(userId: ID!, newPassword: String!): Boolean!
   }
 `;
