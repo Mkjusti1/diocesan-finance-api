@@ -62,7 +62,7 @@ export function Parishes() {
       </div>
 
       {/* Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px' }} className="parishes-grid">
         {data?.parishes.map(parish => (
           <div key={parish.id} style={{
             backgroundColor: 'white', borderRadius: '12px',

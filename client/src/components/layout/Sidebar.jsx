@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Building2, ReceiptText,
-  Users, ShieldAlert, LogOut, Landmark, UploadCloud
+  Users, ShieldAlert, LogOut, Landmark, UploadCloud, KeyRound
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
@@ -12,6 +12,7 @@ const navItems = [
   { to: '/debtors', icon: ShieldAlert, label: 'Debtors', roles: ['ADMIN','BISHOP'] },
   { to: '/users', icon: Users, label: 'Users', roles: ['ADMIN'] },
   { to: '/upload', icon: UploadCloud, label: 'Upload', roles: ['ADMIN'] },
+  { to: '/profile', icon: KeyRound, label: 'Profile', roles: ['ADMIN','BISHOP','PRIEST'] },
 ];
 
 export function Sidebar() {

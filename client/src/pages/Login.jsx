@@ -54,8 +54,8 @@ export function Login() {
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#FFF9F2' }}>
 
-      {/* Left panel */}
-      <div style={{
+      {/* Left panel — hidden on mobile */}
+      <div className="login-left" style={{
         width: '45%', minHeight: '100vh', backgroundColor: '#8B4C39',
         display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
         padding: '48px'
@@ -169,5 +169,10 @@ export function Login() {
         </div>
       </div>
     </div>
+    <style>{`
+        @media (max-width: 767px) {
+          .login-left { display: none !important; }
+        }
+      `}</style>
   );
 }

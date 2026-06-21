@@ -68,7 +68,7 @@ export function ParishDetail() {
       </button>
 
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
           <div style={{
             width: '48px', height: '48px', borderRadius: '12px',
@@ -97,7 +97,7 @@ export function ParishDetail() {
       </div>
 
       {/* Summary cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }} className="detail-grid">
         {[
           { label: 'Total Collected', value: formatCurrency(yearTotal), color: '#D3542A', bg: '#D3542A' },
           { label: 'Months Reported', value: `${monthsReported} / 12`, color: '#8B4C39', bg: '#C89B6E' },
@@ -223,5 +223,10 @@ export function ParishDetail() {
         )}
       </div>
     </div>
+    <style>{`
+      @media (max-width: 767px) {
+        .detail-grid { grid-template-columns: repeat(1, 1fr) !important; }
+      }
+    `}</style>
   );
 }

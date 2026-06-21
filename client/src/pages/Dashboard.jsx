@@ -51,6 +51,14 @@ function StatCard({ icon: Icon, label, value, sub, iconBg, borderColor }) {
         </div>
       </div>
     </div>
+    <style>{`
+      @media (max-width: 767px) {
+        .stat-grid { grid-template-columns: repeat(2, 1fr) !important; }
+      }
+      @media (min-width: 768px) {
+        .stat-grid { grid-template-columns: repeat(4, 1fr) !important; }
+      }
+    `}</style>
   );
 }
 
@@ -90,7 +98,7 @@ export function Dashboard() {
           <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#1a0a06', marginBottom: '4px' }}>Dashboard</h1>
           <p style={{ fontSize: '13px', color: '#A7A68B' }}>Financial overview for {selectedYear}</p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           {sources.length > 1 && (
             <>
               <label style={{ fontSize: '12px', fontWeight: 600, color: '#A7A68B', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
@@ -113,7 +121,7 @@ export function Dashboard() {
 
       {/* Stat cards */}
       {loading ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }} className="stat-grid">
           {[1,2,3,4].map(i => (
             <div key={i} style={{ backgroundColor: 'white', borderRadius: '12px', border: '1px solid #F5E3D7', padding: '20px 24px', height: '96px', animation: 'pulse 1.5s infinite' }}>
               <div style={{ backgroundColor: '#F5E3D7', borderRadius: '6px', height: '12px', width: '60%', marginBottom: '12px' }} />
@@ -123,7 +131,7 @@ export function Dashboard() {
           <style>{`@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.6} }`}</style>
         </div>
       ) : stats ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }} className="stat-grid">
           <StatCard icon={TrendingUp} label="Total Collected" value={formatCurrency(stats.totalCollectedThisYear)}
             sub={`${selectedYear} year to date`} iconBg="#D3542A" borderColor="#D3542A" />
           <StatCard icon={Building2} label="Total Parishes" value={stats.totalParishes}
@@ -270,5 +278,13 @@ export function Dashboard() {
       </div>
 
     </div>
+    <style>{`
+      @media (max-width: 767px) {
+        .stat-grid { grid-template-columns: repeat(2, 1fr) !important; }
+      }
+      @media (min-width: 768px) {
+        .stat-grid { grid-template-columns: repeat(4, 1fr) !important; }
+      }
+    `}</style>
   );
 }

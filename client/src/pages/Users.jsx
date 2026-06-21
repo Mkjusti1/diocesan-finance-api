@@ -110,7 +110,7 @@ export function Users() {
       )}
 
       {/* Role cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }} className="roles-grid">
         {roles.map(({ role, desc, color }) => (
           <div key={role} style={{
             backgroundColor: 'white', borderRadius: '12px',
