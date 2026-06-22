@@ -41,3 +41,13 @@
   .stat-card-mahogany { @apply border-l-4 border-l-mahogany; }
   .stat-card-sage  { @apply border-l-4 border-l-sage; }
 }
+
+
+/* Prevent horizontal overflow on mobile */
+html, body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+* {
+  box-sizing: border-box;
+}

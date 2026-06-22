@@ -23,7 +23,7 @@ export function AppLayout() {
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#FFF9F2' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#FFF9F2', overflow: 'hidden', maxWidth: '100vw' }}>
 
       {/* Desktop sidebar */}
       {!isMobile && <Sidebar />}
@@ -31,7 +31,7 @@ export function AppLayout() {
       {/* Mobile sidebar drawer */}
       {isMobile && <MobileSidebar open={menuOpen} onClose={() => setMenuOpen(false)} />}
 
-      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ flex: 1, minWidth: 0, maxWidth: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
         {/* Mobile top bar */}
         {isMobile && (
