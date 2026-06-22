@@ -8,8 +8,12 @@ export function Users() {
   const [newToken, setNewToken] = useState(null);
   const [copied, setCopied] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'PRIEST', parishId: '' });
+  const [parishSearch, setParishSearch] = useState('');
 
   const { data: parishData } = useQuery(GET_PARISHES);
+  const filteredParishes = (parishData?.parishes || []).filter(p =>
+    p.name.toLowerCase().includes(parishSearch.toLowerCase())
+  );
   const [createUser] = useMutation(CREATE_USER);
 
   const handleSubmit = async (e) => {
@@ -23,6 +27,7 @@ export function Users() {
     if (data.createUser.priestToken) setNewToken(data.createUser.priestToken);
     setModal(false);
     setForm({ name: '', email: '', password: '', role: 'PRIEST', parishId: '' });
+    setParishSearch('');
   };
 
   const copyToken = () => {

@@ -35,6 +35,7 @@ export function Profile() {
   const [selectedUser, setSelectedUser] = useState('');
   const [newAdminPass, setNewAdminPass] = useState('');
   const [adminStatus, setAdminStatus] = useState(null);
+  const [userSearch, setUserSearch] = useState('');
 
   const { data: usersData } = useQuery(GET_ALL_USERS, { skip: !isAdmin });
 
@@ -169,6 +170,8 @@ export function Profile() {
                 <option value="">Choose a user...</option>
                 {usersData?.allUsers
                   ?.filter(u => u.id !== String(user?.id))
+                  .filter(u => u.name?.toLowerCase().includes(userSearch.toLowerCase()) ||
+                               u.parish?.name?.toLowerCase().includes(userSearch.toLowerCase()))
                   .map(u => (
                     <option key={u.id} value={u.id}>
                       {u.name} — {u.role}{u.parish ? ` · ${u.parish.name}` : ''}
