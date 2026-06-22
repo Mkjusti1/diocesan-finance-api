@@ -30,3 +30,8 @@ coverage/
 uploads/
 seed.mjs
 seed-admin.mjs
+priest-tokens.csv
+bulk-priests.mjs
+sample-priests.csv
+priest-tokens.csv
+sample-priests.csv
