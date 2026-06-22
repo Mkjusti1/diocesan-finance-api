@@ -27,7 +27,6 @@ export function ParishDetail() {
   const { user } = useAuth();
   const [selectedYear, setSelectedYear] = useState(user?.role === 'PRIEST' ? 0 : currentYear);
 
-  // Redirect priests trying to access another parish
   if (user?.role === 'PRIEST' && user?.parishId && parseInt(id) !== user.parishId) {
     navigate(`/parishes/${user.parishId}`, { replace: true });
   }
@@ -40,7 +39,6 @@ export function ParishDetail() {
   const records = data?.remittanceRecords || [];
   const sources = data?.remittanceSources || [];
 
-  // Build month × collection grid
   const recordByMonth = {};
   records.forEach(r => { recordByMonth[r.month] = r; });
 
@@ -55,6 +53,12 @@ export function ParishDetail() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+
+      <style>{`
+        @media (max-width: 767px) {
+          .detail-grid { grid-template-columns: repeat(1, 1fr) !important; }
+        }
+      `}</style>
 
       {/* Back button */}
       <button onClick={() => navigate(-1)} style={{
@@ -87,7 +91,6 @@ export function ParishDetail() {
           </div>
         </div>
 
-        {/* Year filter */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
           <label style={{ fontSize: '12px', fontWeight: 600, color: '#A7A68B', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Year</label>
           <select value={selectedYear} onChange={e => setSelectedYear(parseInt(e.target.value))} style={selectStyle}>
@@ -99,10 +102,10 @@ export function ParishDetail() {
       {/* Summary cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }} className="detail-grid">
         {[
-          { label: 'Total Collected', value: formatCurrency(yearTotal), color: '#D3542A', bg: '#D3542A' },
-          { label: 'Months Reported', value: `${monthsReported} / 12`, color: '#8B4C39', bg: '#C89B6E' },
-          { label: 'Months Missing', value: `${12 - monthsReported}`, color: '#A7A68B', bg: '#A7A68B' },
-        ].map(({ label, value, color, bg }) => (
+          { label: 'Total Collected', value: formatCurrency(yearTotal), bg: '#D3542A' },
+          { label: 'Months Reported', value: `${monthsReported} / 12`, bg: '#C89B6E' },
+          { label: 'Months Missing', value: `${12 - monthsReported}`, bg: '#A7A68B' },
+        ].map(({ label, value, bg }) => (
           <div key={label} style={{
             backgroundColor: 'white', borderRadius: '12px',
             border: '1px solid #F5E3D7', borderLeft: `4px solid ${bg}`,
@@ -122,7 +125,7 @@ export function ParishDetail() {
       }}>
         <div style={{ padding: '18px 24px', borderBottom: '1px solid #F5E3D7' }}>
           <p style={{ fontSize: '13px', fontWeight: 700, color: '#8B4C39', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-            Monthly Breakdown — {selectedYear}
+            Monthly Breakdown — {selectedYear || 'All Years'}
           </p>
         </div>
 
@@ -133,20 +136,14 @@ export function ParishDetail() {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ backgroundColor: '#FFF9F2', borderBottom: '2px solid #F5E3D7' }}>
-                  <th style={{ textAlign: 'left', padding: '12px 20px', fontSize: '11px', fontWeight: 700, color: '#A7A68B', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
-                    Month
-                  </th>
+                  <th style={{ textAlign: 'left', padding: '12px 20px', fontSize: '11px', fontWeight: 700, color: '#A7A68B', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>Month</th>
                   {sources.map(s => (
                     <th key={s.id} style={{ textAlign: 'right', padding: '12px 16px', fontSize: '11px', fontWeight: 700, color: '#A7A68B', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
                       {s.name}
                     </th>
                   ))}
-                  <th style={{ textAlign: 'right', padding: '12px 20px', fontSize: '11px', fontWeight: 700, color: '#8B4C39', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
-                    Total
-                  </th>
-                  <th style={{ textAlign: 'center', padding: '12px 20px', fontSize: '11px', fontWeight: 700, color: '#A7A68B', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                    Status
-                  </th>
+                  <th style={{ textAlign: 'right', padding: '12px 20px', fontSize: '11px', fontWeight: 700, color: '#8B4C39', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>Total</th>
+                  <th style={{ textAlign: 'center', padding: '12px 20px', fontSize: '11px', fontWeight: 700, color: '#A7A68B', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -154,12 +151,8 @@ export function ParishDetail() {
                   const month = idx + 1;
                   const record = recordByMonth[month];
                   const hasPaid = !!record;
-
-                  // Build amount per source
                   const amountBySource = {};
-                  record?.lineItems?.forEach(item => {
-                    amountBySource[item.source.id] = item.amount;
-                  });
+                  record?.lineItems?.forEach(item => { amountBySource[item.source.id] = item.amount; });
 
                   return (
                     <tr key={month}
@@ -167,9 +160,7 @@ export function ParishDetail() {
                       onMouseEnter={e => e.currentTarget.style.backgroundColor = '#FFF9F2'}
                       onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
                     >
-                      <td style={{ padding: '13px 20px', fontSize: '13px', fontWeight: 600, color: '#1a0a06', whiteSpace: 'nowrap' }}>
-                        {monthName}
-                      </td>
+                      <td style={{ padding: '13px 20px', fontSize: '13px', fontWeight: 600, color: '#1a0a06', whiteSpace: 'nowrap' }}>{monthName}</td>
                       {sources.map(s => (
                         <td key={s.id} style={{ padding: '13px 16px', textAlign: 'right', fontSize: '13px', color: amountBySource[s.id] ? '#1a0a06' : '#A7A68B', whiteSpace: 'nowrap' }}>
                           {amountBySource[s.id] ? formatCurrency(amountBySource[s.id]) : '—'}
@@ -193,12 +184,9 @@ export function ParishDetail() {
                   );
                 })}
               </tbody>
-              {/* Totals row */}
               <tfoot>
                 <tr style={{ backgroundColor: '#FFF9F2', borderTop: '2px solid #F5E3D7' }}>
-                  <td style={{ padding: '13px 20px', fontSize: '12px', fontWeight: 700, color: '#8B4C39', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                    Total
-                  </td>
+                  <td style={{ padding: '13px 20px', fontSize: '12px', fontWeight: 700, color: '#8B4C39', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Total</td>
                   {sources.map(s => {
                     const sourceTotal = records.reduce((sum, r) => {
                       const item = r.lineItems?.find(li => li.source.id === s.id);
@@ -223,10 +211,5 @@ export function ParishDetail() {
         )}
       </div>
     </div>
-    <style>{`
-      @media (max-width: 767px) {
-        .detail-grid { grid-template-columns: repeat(1, 1fr) !important; }
-      }
-    `}</style>
   );
 }

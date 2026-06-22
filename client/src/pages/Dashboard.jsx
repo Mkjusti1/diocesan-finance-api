@@ -51,14 +51,6 @@ function StatCard({ icon: Icon, label, value, sub, iconBg, borderColor }) {
         </div>
       </div>
     </div>
-    <style>{`
-      @media (max-width: 767px) {
-        .stat-grid { grid-template-columns: repeat(2, 1fr) !important; }
-      }
-      @media (min-width: 768px) {
-        .stat-grid { grid-template-columns: repeat(4, 1fr) !important; }
-      }
-    `}</style>
   );
 }
 
@@ -278,13 +270,5 @@ export function Dashboard() {
       </div>
 
     </div>
-    <style>{`
-      @media (max-width: 767px) {
-        .stat-grid { grid-template-columns: repeat(2, 1fr) !important; }
-      }
-      @media (min-width: 768px) {
-        .stat-grid { grid-template-columns: repeat(4, 1fr) !important; }
-      }
-    `}</style>
   );
 }
