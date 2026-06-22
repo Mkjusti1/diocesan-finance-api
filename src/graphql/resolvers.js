@@ -748,6 +748,19 @@ export const resolvers = {
       return mapDebtor(rows[0]);
     },
 
+    regeneratePriestToken: async (_, { userId }, { user }) => {
+      requireRole(user, 'ADMIN');
+      const { randomBytes } = await import('crypto');
+      const newToken = randomBytes(32).toString('hex');
+      const { rows } = await pool.query(
+        `UPDATE users SET priest_token = $1, updated_at = NOW() WHERE id = $2 AND role = 'PRIEST' RETURNING *`,
+        [newToken, userId]
+      );
+      if (!rows[0]) throw new Error('Priest not found');
+      await logAuditEvent(user.id, 'REGENERATE_TOKEN', 'users', userId, null, null);
+      return mapUser(rows[0]);
+    },
+
     adminResetPassword: async (_, { userId, newPassword }, { user }) => {
       requireRole(user, 'ADMIN');
       if (newPassword.length < 6) throw new Error('Password must be at least 6 characters');

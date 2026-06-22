@@ -195,5 +195,6 @@ export const typeDefs = gql`
     updateDebtor(id: ID!, input: UpdateDebtorInput!): Debtor!
     markAsOverdue(parishId: ID!, year: Int!, month: Int!): Debtor!
     adminResetPassword(userId: ID!, newPassword: String!): Boolean!
+    regeneratePriestToken(userId: ID!): User!
   }
 `;
