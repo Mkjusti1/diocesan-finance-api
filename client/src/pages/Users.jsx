@@ -1,28 +1,28 @@
 import { useState } from 'react';
-import { useQuery, useMutation, gql } from '@apollo/client/react';
-import { Plus, Copy, Check, User, RefreshCw, Eye, EyeOff } from 'lucide-react';
-import { GET_PARISHES, CREATE_USER } from '@/graphql/queries';
-import { gql as gqlCore } from '@apollo/client/core';
+import { useQuery, useMutation } from '@apollo/client/react';
+import { gql } from '@apollo/client/core';
+import { Plus, Copy, Check, RefreshCw, Eye, EyeOff } from 'lucide-react';
+import { GET_PARISHES } from '@/graphql/queries';
 
-const GET_ALL_USERS = gqlCore`
+const GET_ALL_USERS = gql`
   query GetAllUsers {
     allUsers { id name email role parishId priestToken parish { id name } }
   }
 `;
 
-const REGENERATE_TOKEN = gqlCore`
+const REGENERATE_TOKEN = gql`
   mutation RegenerateToken($userId: ID!) {
     regeneratePriestToken(userId: $userId) { id name priestToken parish { name } }
   }
 `;
 
-const CREATE_USER_MUTATION = gqlCore`
+const CREATE_USER_MUTATION = gql`
   mutation CreateUser($input: CreateUserInput!) {
     createUser(input: $input) { id name email role parishId priestToken parish { name } }
   }
 `;
 
-const DELETE_USER = gqlCore`
+const DELETE_USER = gql`
   mutation DeleteUser($id: ID!) { deleteUser(id: $id) }
 `;
 
