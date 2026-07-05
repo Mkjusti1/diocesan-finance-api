@@ -3,7 +3,8 @@ import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { MobileSidebar } from './MobileSidebar';
 import { useAuth } from '@/context/AuthContext';
-import { Landmark, Menu } from 'lucide-react';
+import { Menu } from 'lucide-react';
+import dioceseLogo from '@/assets/diocese-logo.jpg';
 
 export function AppLayout() {
   const { isAuthenticated, user } = useAuth();
@@ -41,13 +42,9 @@ export function AppLayout() {
             position: 'sticky', top: 0, zIndex: 40, flexShrink: 0
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{
-                width: '30px', height: '30px', borderRadius: '7px',
-                backgroundColor: '#D3542A', display: 'flex', alignItems: 'center', justifyContent: 'center'
-              }}>
-                <Landmark size={15} color="white" strokeWidth={2} />
-              </div>
-              <span style={{ color: 'white', fontWeight: 700, fontSize: '13px' }}>Diocesan Finance</span>
+              <img src={dioceseLogo} alt="CADIAG"
+                style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #C89B6E' }} />
+              <span style={{ color: 'white', fontWeight: 900, fontSize: '13px', letterSpacing: '0.02em' }}>CADIAG FINANCE</span>
             </div>
             <button onClick={() => setMenuOpen(true)} style={{
               background: 'none', border: 'none', cursor: 'pointer', padding: '6px',

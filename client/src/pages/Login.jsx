@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation } from '@apollo/client/react';
-import { Landmark } from 'lucide-react';
 import { LOGIN } from '@/graphql/queries';
 import { useAuth } from '@/context/AuthContext';
 import { gql } from '@apollo/client/core';
+import dioceseLogo from '@/assets/diocese-logo.jpg';
 
 const LOGIN_WITH_TOKEN = gql`
   mutation LoginWithToken($token: String!) {
@@ -71,40 +71,39 @@ export function Login() {
       {!isMobile && (
         <div style={{
           width: '45%', minHeight: '100vh', backgroundColor: '#8B4C39',
-          display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
-          padding: '48px', flexShrink: 0
+          display: 'flex', flexDirection: 'column', alignItems: 'center',
+          justifyContent: 'center', padding: '48px', flexShrink: 0, gap: '24px'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{
-              width: '36px', height: '36px', borderRadius: '8px',
-              backgroundColor: '#D3542A', display: 'flex', alignItems: 'center', justifyContent: 'center'
+          {/* Diocese Logo */}
+          <img
+            src={dioceseLogo}
+            alt="Catholic Diocese of Aguleri"
+            style={{
+              width: '160px', height: '160px', borderRadius: '50%',
+              objectFit: 'cover', border: '4px solid #C89B6E',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.3)'
+            }}
+          />
+
+          {/* Title */}
+          <div style={{ textAlign: 'center' }}>
+            <p style={{
+              color: 'white', fontSize: '32px', fontWeight: 900,
+              letterSpacing: '0.02em', lineHeight: 1.1, marginBottom: '8px'
             }}>
-              <Landmark size={18} color="white" strokeWidth={2} />
-            </div>
-            <span style={{ color: 'white', fontWeight: 600, fontSize: '14px' }}>Diocesan Finance</span>
-          </div>
-
-          <div>
-            <p style={{ color: 'white', fontSize: '36px', fontWeight: 700, lineHeight: 1.3, marginBottom: '16px' }}>
-              Managing God's<br />resources with care
+              CADIAG FINANCE
             </p>
-            <p style={{ color: '#C89B6E', fontSize: '14px', lineHeight: 1.7, maxWidth: '360px' }}>
-              A complete financial management system for tracking parish remittances, collections, and outstanding balances across the diocese.
+            <p style={{
+              color: '#C89B6E', fontSize: '13px', fontWeight: 500,
+              letterSpacing: '0.08em', textTransform: 'uppercase'
+            }}>
+              Catholic Diocese of Aguleri
             </p>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
-            {[['Parishes', 'Tracked'], ['Collections', 'Recorded'], ['Reports', 'Generated']].map(([label, sub]) => (
-              <div key={label} style={{ borderRadius: '10px', padding: '16px', backgroundColor: 'rgba(255,255,255,0.08)' }}>
-                <p style={{ color: 'white', fontWeight: 600, fontSize: '13px', marginBottom: '4px' }}>{label}</p>
-                <p style={{ color: '#C89B6E', fontSize: '11px' }}>{sub}</p>
-              </div>
-            ))}
           </div>
         </div>
       )}
 
-      {/* Right panel — full width on mobile */}
+      {/* Right panel */}
       <div style={{
         flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
         padding: isMobile ? '40px 24px' : '48px 32px',
@@ -112,20 +111,22 @@ export function Login() {
       }}>
         <div style={{ width: '100%', maxWidth: '380px' }}>
 
-          {/* Mobile logo */}
+          {/* Mobile logo + title */}
           {isMobile && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '32px' }}>
-              <div style={{
-                width: '36px', height: '36px', borderRadius: '8px',
-                backgroundColor: '#D3542A', display: 'flex', alignItems: 'center', justifyContent: 'center'
-              }}>
-                <Landmark size={18} color="white" strokeWidth={2} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '32px' }}>
+              <img
+                src={dioceseLogo}
+                alt="Catholic Diocese of Aguleri"
+                style={{ width: '44px', height: '44px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #C89B6E' }}
+              />
+              <div>
+                <p style={{ fontWeight: 900, fontSize: '16px', color: '#1a0a06', lineHeight: 1.1 }}>CADIAG FINANCE</p>
+                <p style={{ fontSize: '11px', color: '#A7A68B', marginTop: '2px' }}>Catholic Diocese of Aguleri</p>
               </div>
-              <span style={{ fontWeight: 700, fontSize: '15px', color: '#1a0a06' }}>Diocesan Finance</span>
             </div>
           )}
 
-          <h2 style={{ fontSize: isMobile ? '28px' : '26px', fontWeight: 700, color: '#1a0a06', marginBottom: '8px' }}>
+          <h2 style={{ fontSize: isMobile ? '26px' : '24px', fontWeight: 700, color: '#1a0a06', marginBottom: '6px' }}>
             Welcome back
           </h2>
           <p style={{ fontSize: '14px', color: '#A7A68B', marginBottom: '28px' }}>

@@ -1,17 +1,23 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
-  LayoutDashboard, Building2, ReceiptText,
-  Users, ShieldAlert, LogOut, Landmark, UploadCloud, KeyRound
+  LayoutDashboard, ReceiptText, ShieldAlert,
+  Users, LogOut, UploadCloud, KeyRound,
+  BookOpen, Wheat, Church, GraduationCap, Sun
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import dioceseLogo from '@/assets/diocese-logo.jpg';
 
 const navItems = [
-  { to: '/', icon: LayoutDashboard, label: 'Dashboard', roles: ['ADMIN','BISHOP','PRIEST'] },
-  { to: '/parishes', icon: Building2, label: 'Parishes', roles: ['ADMIN','BISHOP'] },
-  { to: '/remittances', icon: ReceiptText, label: 'Remittances', roles: ['ADMIN','BISHOP','PRIEST'] },
+  { to: '/', icon: LayoutDashboard, label: 'Dashboard', roles: ['ADMIN','BISHOP'] },
+  { to: '/rectory', icon: ReceiptText, label: 'Rectory', roles: ['ADMIN','BISHOP','PRIEST'] },
+  { to: '/national-collections', icon: BookOpen, label: 'National Collections', roles: ['ADMIN','BISHOP'] },
+  { to: '/harvest-bazaar', icon: Wheat, label: 'Harvest & Bazaar', roles: ['ADMIN','BISHOP'] },
+  { to: '/cathedraticum', icon: Church, label: 'Cathedraticum', roles: ['ADMIN','BISHOP'] },
+  { to: '/project-sunday', icon: Sun, label: 'Project Sunday', roles: ['ADMIN','BISHOP'] },
+  { to: '/seminary-collections', icon: GraduationCap, label: 'Seminary Collections', roles: ['ADMIN','BISHOP'] },
   { to: '/debtors', icon: ShieldAlert, label: 'Debtors', roles: ['ADMIN','BISHOP'] },
-  { to: '/users', icon: Users, label: 'Users', roles: ['ADMIN'] },
   { to: '/upload', icon: UploadCloud, label: 'Upload', roles: ['ADMIN'] },
+  { to: '/users', icon: Users, label: 'Users', roles: ['ADMIN'] },
   { to: '/profile', icon: KeyRound, label: 'Profile', roles: ['ADMIN','BISHOP','PRIEST'] },
 ];
 
@@ -26,24 +32,27 @@ export function Sidebar() {
       display: 'flex', flexDirection: 'column', flexShrink: 0
     }}>
       {/* Logo */}
-      <div style={{ padding: '24px 20px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+      <div style={{ padding: '20px 16px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{
-            width: '36px', height: '36px', borderRadius: '10px',
-            backgroundColor: '#D3542A', display: 'flex', alignItems: 'center',
-            justifyContent: 'center', flexShrink: 0
-          }}>
-            <Landmark size={18} color="white" strokeWidth={2} />
-          </div>
+          <img
+            src={dioceseLogo}
+            alt="CADIAG"
+            style={{
+              width: '38px', height: '38px', borderRadius: '50%',
+              objectFit: 'cover', border: '2px solid #C89B6E', flexShrink: 0
+            }}
+          />
           <div>
-            <p style={{ color: 'white', fontWeight: 700, fontSize: '13px', lineHeight: 1.2 }}>Diocesan Finance</p>
-            <p style={{ color: '#C89B6E', fontSize: '11px', marginTop: '2px' }}>Management System</p>
+            <p style={{ color: 'white', fontWeight: 900, fontSize: '13px', lineHeight: 1.1, letterSpacing: '0.02em' }}>
+              CADIAG FINANCE
+            </p>
+            <p style={{ color: '#C89B6E', fontSize: '10px', marginTop: '2px' }}>Diocese of Aguleri</p>
           </div>
         </div>
       </div>
 
       {/* Nav */}
-      <nav style={{ flex: 1, padding: '12px' }}>
+      <nav style={{ flex: 1, padding: '12px', overflowY: 'auto' }}>
         {allowed.map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}
@@ -51,16 +60,17 @@ export function Sidebar() {
             end={to === '/'}
             style={({ isActive }) => ({
               display: 'flex', alignItems: 'center', gap: '10px',
-              padding: '10px 12px', borderRadius: '8px', marginBottom: '2px',
-              textDecoration: 'none', fontSize: '13px', fontWeight: 500,
+              padding: '9px 12px', borderRadius: '8px', marginBottom: '2px',
+              textDecoration: 'none', fontSize: '12.5px', fontWeight: 500,
               transition: 'all 0.15s',
               backgroundColor: isActive ? '#D3542A' : 'transparent',
-              color: isActive ? 'white' : 'rgba(255,255,255,0.55)',
+              color: isActive ? 'white' : 'rgba(255,255,255,0.6)',
+              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
             })}
           >
             {({ isActive }) => (
               <>
-                <Icon size={16} strokeWidth={isActive ? 2.5 : 2} />
+                <Icon size={15} strokeWidth={isActive ? 2.5 : 2} style={{ flexShrink: 0 }} />
                 {label}
               </>
             )}
@@ -92,10 +102,7 @@ export function Sidebar() {
             {user?.name?.charAt(0)}
           </div>
           <div style={{ minWidth: 0 }}>
-            <p style={{
-              color: 'white', fontSize: '13px', fontWeight: 600,
-              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
-            }}>
+            <p style={{ color: 'white', fontSize: '13px', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {user?.name}
             </p>
             <p style={{ color: '#C89B6E', fontSize: '11px', marginTop: '1px' }}>{user?.role}</p>
@@ -110,14 +117,8 @@ export function Sidebar() {
             color: 'rgba(255,255,255,0.45)', fontSize: '13px', fontWeight: 500,
             transition: 'all 0.15s'
           }}
-          onMouseEnter={e => {
-            e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.08)';
-            e.currentTarget.style.color = 'white';
-          }}
-          onMouseLeave={e => {
-            e.currentTarget.style.backgroundColor = 'transparent';
-            e.currentTarget.style.color = 'rgba(255,255,255,0.45)';
-          }}
+          onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = 'white'; }}
+          onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.45)'; }}
         >
           <LogOut size={15} strokeWidth={2} />
           Sign out
