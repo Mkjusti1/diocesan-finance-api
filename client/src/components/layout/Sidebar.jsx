@@ -46,7 +46,7 @@ export function Sidebar() {
             <p style={{ color: 'white', fontWeight: 900, fontSize: '13px', lineHeight: 1.1, letterSpacing: '0.02em' }}>
               CADIAG FINANCE
             </p>
-            <p style={{ color: '#C89B6E', fontSize: '10px', marginTop: '2px' }}>Diocese of Aguleri</p>
+            
           </div>
         </div>
       </div>

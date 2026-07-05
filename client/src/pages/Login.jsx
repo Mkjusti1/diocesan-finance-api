@@ -93,12 +93,7 @@ export function Login() {
             }}>
               CADIAG FINANCE
             </p>
-            <p style={{
-              color: '#C89B6E', fontSize: '13px', fontWeight: 500,
-              letterSpacing: '0.08em', textTransform: 'uppercase'
-            }}>
-              Catholic Diocese of Aguleri
-            </p>
+
           </div>
         </div>
       )}
@@ -121,7 +116,7 @@ export function Login() {
               />
               <div>
                 <p style={{ fontWeight: 900, fontSize: '16px', color: '#1a0a06', lineHeight: 1.1 }}>CADIAG FINANCE</p>
-                <p style={{ fontSize: '11px', color: '#A7A68B', marginTop: '2px' }}>Catholic Diocese of Aguleri</p>
+                
               </div>
             </div>
           )}

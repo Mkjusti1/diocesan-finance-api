@@ -46,7 +46,7 @@ export function MobileSidebar({ open, onClose }) {
               style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #C89B6E' }} />
             <div>
               <p style={{ color: 'white', fontWeight: 900, fontSize: '13px', letterSpacing: '0.02em' }}>CADIAG FINANCE</p>
-              <p style={{ color: '#C89B6E', fontSize: '10px', marginTop: '1px' }}>Diocese of Aguleri</p>
+              
             </div>
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.6)', padding: '4px' }}>
