@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@apollo/client/react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { TrendingUp, Building2, ReceiptText, ShieldAlert, FileText } from 'lucide-react';
@@ -55,9 +55,15 @@ function StatCard({ icon: Icon, label, value, sub, iconBg, borderColor }) {
 }
 
 export function Dashboard() {
-  const [selectedYear, setSelectedYear] = useState(currentYear);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const yearFromUrl = parseInt(searchParams.get('year')) || currentYear;
+  const [selectedYear, setSelectedYear] = useState(yearFromUrl);
   const [selectedCollection, setSelectedCollection] = useState('all');
   const navigate = useNavigate();
+
+  useEffect(() => {
+    setSearchParams({ year: selectedYear }, { replace: true });
+  }, [selectedYear]);
 
   const { data, loading, error } = useQuery(GET_DASHBOARD_STATS, {
     variables: { year: selectedYear },

@@ -303,7 +303,7 @@ app.post('/api/upload/national', authenticateToken, upload.single('file'), async
 
         // Check for existing annual record (month = 13)
         const existing = await client.query(
-          'SELECT id FROM remittance_records WHERE parish_id = $1 AND year = $2 AND month = 13',
+          'SELECT id FROM remittance_records WHERE parish_id = $1 AND year = $2 AND month = 0',
           [parishId, parseInt(year)]
         );
 
@@ -312,7 +312,7 @@ app.post('/api/upload/national', authenticateToken, upload.single('file'), async
           remittanceId = existing.rows[0].id;
         } else {
           const { rows } = await client.query(
-            'INSERT INTO remittance_records (parish_id, year, month, uploaded_by) VALUES ($1, $2, 13, $3) RETURNING id',
+            'INSERT INTO remittance_records (parish_id, year, month, uploaded_by) VALUES ($1, $2, 0, $3) RETURNING id',
             [parishId, parseInt(year), req.user.id]
           );
           remittanceId = rows[0].id;

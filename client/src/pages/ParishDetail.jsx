@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@apollo/client/react';
 import { gql } from '@apollo/client/core';
 import { ArrowLeft, Building2 } from 'lucide-react';
@@ -24,8 +24,15 @@ const GET_PARISH_DETAIL = gql`
 export function ParishDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
-  const [selectedYear, setSelectedYear] = useState(user?.role === 'PRIEST' ? 0 : currentYear);
+  const yearFromUrl = parseInt(searchParams.get('year')) || currentYear;
+  const [selectedYear, setSelectedYear] = useState(user?.role === 'PRIEST' ? 0 : yearFromUrl);
+
+  // Sync year to URL so back navigation preserves it
+  useEffect(() => {
+    if (selectedYear) setSearchParams({ year: selectedYear }, { replace: true });
+  }, [selectedYear]);
 
   if (user?.role === 'PRIEST' && user?.parishId && parseInt(id) !== user.parishId) {
     navigate(`/parishes/${user.parishId}`, { replace: true });

@@ -28,12 +28,12 @@ export default function App() {
               <Route path="/remittances" element={<Remittances />} />
 
               {/* Collection pages */}
-              <Route path="/rectory" element={<CollectionPage title="Rectory" collectionName="Rectory" />} />
-              <Route path="/national-collections" element={<CollectionPage title="National Collections" collectionName="National Collections" />} />
-              <Route path="/harvest-bazaar" element={<CollectionPage title="Harvest & Bazaar" collectionName="Harvest & Bazaar" />} />
-              <Route path="/cathedraticum" element={<CollectionPage title="Cathedraticum" collectionName="Cathedraticum" />} />
-              <Route path="/project-sunday" element={<CollectionPage title="Project Sunday" collectionName="Project Sunday" />} />
-              <Route path="/seminary-collections" element={<CollectionPage title="Seminary Collections" collectionName="Seminary Collections" />} />
+              <Route path="/rectory" element={<CollectionPage title="Rectory" collectionName="Rectory" type="monthly" />} />
+              <Route path="/national-collections" element={<CollectionPage title="National Collections" collectionName="National Collections" type="annual" />} />
+              <Route path="/harvest-bazaar" element={<CollectionPage title="Harvest & Bazaar" collectionName="Harvest & Bazaar" type="annual" />} />
+              <Route path="/cathedraticum" element={<CollectionPage title="Cathedraticum" collectionName="Cathedraticum" type="annual" />} />
+              <Route path="/project-sunday" element={<CollectionPage title="Project Sunday" collectionName="Project Sunday" type="annual" />} />
+              <Route path="/seminary-collections" element={<CollectionPage title="Seminary Collections" collectionName="Seminary Collections" type="annual" />} />
 
               <Route path="/debtors" element={<Debtors />} />
               <Route path="/upload" element={<UploadPage />} />
