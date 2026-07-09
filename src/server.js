@@ -9,7 +9,7 @@ import cors from 'cors';
 import multer from 'multer';
 import { typeDefs } from './graphql/typeDefs.js';
 import { resolvers } from './graphql/resolvers.js';
-import { processUpload, previewUpload, parseHorizontalCSV, SpreadsheetParser, generateDebtors } from './services/spreadsheetParser.js';
+import { processUpload, previewUpload, parseHorizontalCSV, parseNationalCollections, SpreadsheetParser, generateDebtors } from './services/spreadsheetParser.js';
 import { pool } from './db/pool.js';
 
 dotenv.config();
@@ -242,6 +242,113 @@ app.post('/api/upload/horizontal', authenticateToken, upload.single('file'), asy
   } catch (error) {
     if (req.file) await fs.unlink(req.file.path).catch(() => {});
     console.error('Horizontal upload error:', error);
+    res.status(400).json({ error: error.message || 'Upload failed' });
+  }
+});
+
+
+// Upload National Collections CSV (rows = parishes, columns = collection types)
+app.post('/api/upload/national', authenticateToken, upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+    if (req.user.role !== 'ADMIN') return res.status(403).json({ error: 'Admins only' });
+
+    const { year } = req.body;
+    if (!year) return res.status(400).json({ error: 'Year is required' });
+
+    const rawRecords = await parseNationalCollections(req.file.path, parseInt(year), req.user.id);
+    if (!rawRecords.length) {
+      await fs.unlink(req.file.path).catch(() => {});
+      return res.status(400).json({ error: 'No valid records found in file' });
+    }
+
+    const parser = new SpreadsheetParser(req.file.path);
+    await parser.initializeCollections();
+
+    // Pre-resolve parishes and collections
+    const parishCache = {};
+    const collectionCache = {};
+    const summary = { inserted: 0, skipped: 0, newParishes: [], newCollections: [] };
+
+    for (const record of rawRecords) {
+      if (!parishCache[record.parishName]) {
+        const result = await parser.ensureParish(record.parishName);
+        parishCache[record.parishName] = result.id;
+        if (result.created && !summary.newParishes.includes(record.parishName))
+          summary.newParishes.push(record.parishName);
+      }
+      if (!collectionCache[record.collectionName]) {
+        const result = await parser.ensureCollection(record.collectionName, req.user.id);
+        collectionCache[record.collectionName] = result.id;
+        if (result.created && !summary.newCollections.includes(record.collectionName))
+          summary.newCollections.push(record.collectionName);
+      }
+    }
+
+    // For national collections: one remittance record per parish per year (month = 0 means annual)
+    // We use month = 13 as a sentinel for "annual/full year" records
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      // Group by parish
+      const byParish = {};
+      for (const r of rawRecords) {
+        if (!byParish[r.parishName]) byParish[r.parishName] = [];
+        byParish[r.parishName].push(r);
+      }
+
+      for (const [parishName, items] of Object.entries(byParish)) {
+        const parishId = parishCache[parishName];
+
+        // Check for existing annual record (month = 13)
+        const existing = await client.query(
+          'SELECT id FROM remittance_records WHERE parish_id = $1 AND year = $2 AND month = 13',
+          [parishId, parseInt(year)]
+        );
+
+        let remittanceId;
+        if (existing.rows.length > 0) {
+          remittanceId = existing.rows[0].id;
+        } else {
+          const { rows } = await client.query(
+            'INSERT INTO remittance_records (parish_id, year, month, uploaded_by) VALUES ($1, $2, 13, $3) RETURNING id',
+            [parishId, parseInt(year), req.user.id]
+          );
+          remittanceId = rows[0].id;
+        }
+
+        for (const item of items) {
+          const collectionId = collectionCache[item.collectionName];
+          const existingLine = await client.query(
+            'SELECT id FROM remittance_line_items WHERE remittance_record_id = $1 AND collection_id = $2',
+            [remittanceId, collectionId]
+          );
+          if (existingLine.rows.length === 0) {
+            await client.query(
+              'INSERT INTO remittance_line_items (remittance_record_id, collection_id, amount) VALUES ($1, $2, $3)',
+              [remittanceId, collectionId, item.amount]
+            );
+            summary.inserted++;
+          } else {
+            summary.skipped++;
+          }
+        }
+      }
+
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+
+    await fs.unlink(req.file.path).catch(() => {});
+    res.json({ success: true, summary, message: `Inserted ${summary.inserted} line items` });
+  } catch (error) {
+    if (req.file) await fs.unlink(req.file.path).catch(() => {});
+    console.error('National upload error:', error);
     res.status(400).json({ error: error.message || 'Upload failed' });
   }
 });

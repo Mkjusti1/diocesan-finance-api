@@ -235,6 +235,51 @@ export class SpreadsheetParser {
   }
 }
 
+
+// Parse National Collections CSV
+// Format: rows = parishes, columns = collection types, values = annual amounts
+export async function parseNationalCollections(filePath, year, uploadedByUserId) {
+  const content = await readFile(filePath, 'utf-8');
+  const firstLine = content.split('\n')[0];
+  const delimiter = firstLine.includes('\t') ? '\t' : ',';
+
+  const rows = csvParse(content, {
+    columns: true, skip_empty_lines: true, trim: true, delimiter, cast: false
+  });
+
+  if (rows.length === 0) throw new Error('File is empty');
+
+  const headers = Object.keys(rows[0]);
+  const parishCol = headers.find(h => h.toLowerCase().includes('parish') || h.toLowerCase().includes('name'));
+  if (!parishCol) throw new Error('Could not find parish name column');
+
+  // Skip columns: S/N, serial numbers, totals
+  const skipCols = new Set(['s/n', 'sn', 'no', '#', 'sum total', 'total', parishCol.toLowerCase()]);
+  const collectionCols = headers.filter(h => !skipCols.has(h.toLowerCase().trim()));
+
+  const records = [];
+
+  for (const row of rows) {
+    const parishName = row[parishCol]?.toString().trim();
+    if (!parishName || parishName.toUpperCase() === 'TOTAL') continue;
+
+    for (const col of collectionCols) {
+      const rawValue = row[col]?.toString().replace(/,/g, '').trim();
+      const amount = parseFloat(rawValue);
+      if (!amount || amount <= 0) continue;
+
+      records.push({
+        parishName,
+        year,
+        collectionName: col.trim(),
+        amount,
+      });
+    }
+  }
+
+  return records;
+}
+
 // ─── Preview (dry run — no DB writes) ────────────────────────────────────────
 export async function previewUpload(filePath, year, fileType = 'xlsx', uploadedByUserId) {
   const parser = new SpreadsheetParser(filePath);

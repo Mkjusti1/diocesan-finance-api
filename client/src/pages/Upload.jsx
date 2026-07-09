@@ -11,7 +11,7 @@ export function UploadPage() {
   const fileRef = useRef(null);
   const [file, setFile] = useState(null);
   const [year, setYear] = useState(YEAR);
-  const [format] = useState('horizontal');
+  const [format, setFormat] = useState('horizontal');
   const [collectionName, setCollectionName] = useState('');
   const [step, setStep] = useState('idle'); // idle | previewing | preview_done | uploading | done | error
   const [preview, setPreview] = useState(null);
@@ -69,6 +69,31 @@ export function UploadPage() {
 
     try {
       const res = await fetch(`${API_URL}/api/upload`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${getToken()}` },
+        body: formData,
+      });
+      const text = await res.text();
+      let data;
+      try { data = JSON.parse(text); } catch(e) { throw new Error('Server returned invalid response'); }
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
+      setResult(data);
+      setStep('done');
+    } catch (err) {
+      setError(err.message);
+      setStep('error');
+    }
+  };
+
+  const runNationalUpload = async () => {
+    if (!file || !year) return;
+    setStep('uploading');
+    setError('');
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('year', year);
+    try {
+      const res = await fetch(`${API_URL}/api/upload/national`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${getToken()}` },
         body: formData,
@@ -194,7 +219,7 @@ export function UploadPage() {
               />
             </div>
             {format === 'horizontal' && (
-              <div>
+              <div style={{ display: format === 'horizontal' ? 'block' : 'none' }}>
                 <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#8B4C39', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>
                   Collection Name *
                 </label>
@@ -207,8 +232,33 @@ export function UploadPage() {
             )}
           </div>
 
+          {/* Format selector */}
+          <div>
+            <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#8B4C39', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>
+              Upload Type
+            </label>
+            <div style={{ display: 'flex', backgroundColor: '#F5E3D7', borderRadius: '8px', padding: '3px', width: 'fit-content' }}>
+              {[
+                ['horizontal', 'Rectory (months as columns)'],
+                ['national', 'National Collections (collections as columns)'],
+              ].map(([f, label]) => (
+                <button key={f} type="button" onClick={() => { setFormat(f); setCollectionName(''); }}
+                  style={{
+                    padding: '6px 14px', borderRadius: '6px', border: 'none',
+                    fontSize: '12px', fontWeight: 600, cursor: 'pointer',
+                    backgroundColor: format === f ? 'white' : 'transparent',
+                    color: format === f ? '#8B4C39' : '#A7A68B',
+                    boxShadow: format === f ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                    transition: 'all 0.15s', whiteSpace: 'nowrap'
+                  }}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <button
-            onClick={format === 'horizontal' ? runHorizontalUpload : runPreview}
+            onClick={format === 'national' ? runNationalUpload : runHorizontalUpload}
             disabled={!file || !year || step === 'previewing' || step === 'uploading' || (format === 'horizontal' && !collectionName)}
             style={{
               height: '40px', padding: '0 24px', borderRadius: '8px', border: 'none',
@@ -218,7 +268,7 @@ export function UploadPage() {
               fontSize: '13px', fontWeight: 600, alignSelf: 'flex-start'
             }}
           >
-            {step === 'previewing' || step === 'uploading' ? 'Processing...' : format === 'horizontal' ? 'Upload Now' : 'Preview Upload'}
+            {step === 'previewing' || step === 'uploading' ? 'Processing...' : 'Upload Now'}
           </button>
         </div>
       </div>
