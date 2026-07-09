@@ -328,7 +328,7 @@ export const resolvers = {
           `SELECT COALESCE(SUM(rli.amount), 0) as total
            FROM remittance_line_items rli
            JOIN remittance_records rr ON rli.remittance_record_id = rr.id
-           WHERE rr.year = $1`,
+           WHERE rr.year = $1 AND rr.month BETWEEN 1 AND 12`,
           [year]
         ),
         pool.query('SELECT COUNT(*) as count FROM parishes'),
@@ -348,7 +348,7 @@ export const resolvers = {
           `SELECT rr.*, COALESCE(SUM(rli.amount), 0) as total_amount
            FROM remittance_records rr
            LEFT JOIN remittance_line_items rli ON rr.id = rli.remittance_record_id
-           WHERE rr.year = $1
+           WHERE rr.year = $1 AND rr.month BETWEEN 1 AND 12
            GROUP BY rr.id
            ORDER BY rr.created_at DESC
            LIMIT 5`,
@@ -374,7 +374,7 @@ export const resolvers = {
                 COUNT(DISTINCT rr.parish_id) as parish_count
          FROM remittance_records rr
          LEFT JOIN remittance_line_items rli ON rr.id = rli.remittance_record_id
-         WHERE rr.year = $1
+         WHERE rr.year = $1 AND rr.month BETWEEN 1 AND 12
          GROUP BY rr.month
          ORDER BY rr.month`,
         [year]
@@ -398,7 +398,7 @@ export const resolvers = {
                 MAX(rr.created_at) as last_reported,
                 COALESCE(SUM(d.balance), 0) as outstanding_balance
          FROM parishes p
-         LEFT JOIN remittance_records rr ON p.id = rr.parish_id AND rr.year = $1
+         LEFT JOIN remittance_records rr ON p.id = rr.parish_id AND rr.year = $1 AND rr.month BETWEEN 1 AND 12
          LEFT JOIN remittance_line_items rli ON rr.id = rli.remittance_record_id
          LEFT JOIN debtors d ON p.id = d.parish_id AND d.year = $1 AND d.is_paid = false
          GROUP BY p.id
