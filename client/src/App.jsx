@@ -13,6 +13,7 @@ import { Users } from '@/pages/Users';
 import { UploadPage } from '@/pages/Upload';
 import { Profile } from '@/pages/Profile';
 import { CollectionPage } from '@/pages/CollectionPage';
+import { NationalCollectionsPage } from '@/pages/NationalCollectionsPage';
 
 export default function App() {
   return (
@@ -29,11 +30,11 @@ export default function App() {
 
               {/* Collection pages */}
               <Route path="/rectory" element={<CollectionPage title="Rectory" collectionName="Rectory" type="monthly" />} />
-              <Route path="/national-collections" element={<CollectionPage title="National Collections" collectionName="National Collections" type="annual" />} />
+              <Route path="/national-collections" element={<NationalCollectionsPage />} />
               <Route path="/harvest-bazaar" element={<CollectionPage title="Harvest & Bazaar" collectionName="Harvest & Bazaar" type="annual" />} />
               <Route path="/cathedraticum" element={<CollectionPage title="Cathedraticum" collectionName="Cathedraticum" type="annual" />} />
               <Route path="/project-sunday" element={<CollectionPage title="Project Sunday" collectionName="Project Sunday" type="annual" />} />
-              <Route path="/seminary-collections" element={<CollectionPage title="Seminary Collections" collectionName="Seminary Collections" type="annual" />} />
+              <Route path="/seminary-collections" element={<CollectionPage title="Seminary Collections" collectionName="Bigard Memorial Seminary" type="annual" />} />
 
               <Route path="/debtors" element={<Debtors />} />
               <Route path="/upload" element={<UploadPage />} />

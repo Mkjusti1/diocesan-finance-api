@@ -109,7 +109,8 @@ export class SpreadsheetParser {
       return { id: existing.rows[0].id, created: false };
     }
     const inserted = await pool.query(
-      'INSERT INTO parishes (name) VALUES ($1) RETURNING id', [trimmed]
+      'INSERT INTO parishes (name, diocese) VALUES ($1, $2) RETURNING id',
+      [trimmed, 'Catholic Diocese of Aguleri']
     );
     return { id: inserted.rows[0].id, created: true };
   }

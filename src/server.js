@@ -255,6 +255,10 @@ app.post('/api/upload/national', authenticateToken, upload.single('file'), async
 
     const { year } = req.body;
     if (!year) return res.status(400).json({ error: 'Year is required' });
+    const yearNum = parseInt(year);
+    if (yearNum < 2020 || yearNum > 2030) {
+      return res.status(400).json({ error: `Invalid year: ${yearNum}. Must be between 2020 and 2030.` });
+    }
 
     const rawRecords = await parseNationalCollections(req.file.path, parseInt(year), req.user.id);
     if (!rawRecords.length) {
