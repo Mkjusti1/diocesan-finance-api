@@ -14,6 +14,7 @@ import { UploadPage } from '@/pages/Upload';
 import { Profile } from '@/pages/Profile';
 import { CollectionPage } from '@/pages/CollectionPage';
 import { NationalCollectionsPage } from '@/pages/NationalCollectionsPage';
+import { NationalCollectionsPage } from '@/pages/NationalCollectionsPage';
 
 export default function App() {
   return (
