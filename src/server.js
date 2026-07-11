@@ -94,7 +94,17 @@ const apolloServer = new ApolloServer({
 const app = express();
 
 // Middleware
-app.use(cors({ origin: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : '*', credentials: true }));
+app.use(cors({
+  origin: [
+    'https://diocesan-finance-api.vercel.app',
+    'http://localhost:5173',
+    'http://localhost:5174',
+    ...(process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : [])
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
