@@ -7,7 +7,7 @@ import { logAuditEvent } from '../utils/auditLog.js';
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
 const MONTH_NAMES = [
-  '', 'January', 'February', 'March', 'April', 'May', 'June',
+  'Annual', 'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'
 ];
 

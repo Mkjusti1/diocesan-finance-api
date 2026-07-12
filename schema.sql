@@ -55,7 +55,7 @@ CREATE TABLE remittance_records (
   id SERIAL PRIMARY KEY,
   parish_id INTEGER NOT NULL,
   year INTEGER NOT NULL,
-  month INTEGER NOT NULL CHECK (month >= 1 AND month <= 12),
+  month INTEGER NOT NULL CHECK (month >= 0 AND month <= 12), -- 0 = annual/National Collections
   uploaded_by INTEGER NOT NULL,
   notes TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -84,7 +84,7 @@ CREATE TABLE debtors (
   parish_id INTEGER NOT NULL,
   collection_id INTEGER NOT NULL,
   year INTEGER NOT NULL,
-  month INTEGER NOT NULL CHECK (month >= 1 AND month <= 12),
+  month INTEGER NOT NULL CHECK (month >= 0 AND month <= 12), -- 0 = annual/National Collections
   expected_amount DECIMAL(15, 2),
   actual_amount DECIMAL(15, 2) DEFAULT 0,
   balance DECIMAL(15, 2) DEFAULT 0,

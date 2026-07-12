@@ -31,9 +31,6 @@ export default function App() {
               {/* Collection pages */}
               <Route path="/rectory" element={<CollectionPage title="Rectory" collectionName="Rectory" type="monthly" />} />
               <Route path="/national-collections" element={<NationalCollectionsPage />} />
-              <Route path="/harvest-bazaar" element={<CollectionPage title="Harvest & Bazaar" collectionName="Harvest & Bazaar" type="annual" />} />
-              <Route path="/cathedraticum" element={<CollectionPage title="Cathedraticum" collectionName="Cathedraticum" type="annual" />} />
-              <Route path="/project-sunday" element={<CollectionPage title="Project Sunday" collectionName="Project Sunday" type="annual" />} />
               <Route path="/seminary-collections" element={<CollectionPage title="Seminary Collections" collectionName="Bigard Memorial Seminary" type="annual" />} />
 
               <Route path="/debtors" element={<Debtors />} />

@@ -1,0 +1,148 @@
+diff --git a/client/src/App.jsx b/client/src/App.jsx
+index 4d39d51..5f4afdd 100644
+--- a/client/src/App.jsx
++++ b/client/src/App.jsx
+@@ -31,9 +31,6 @@ export default function App() {
+               {/* Collection pages */}
+               <Route path="/rectory" element={<CollectionPage title="Rectory" collectionName="Rectory" type="monthly" />} />
+               <Route path="/national-collections" element={<NationalCollectionsPage />} />
+-              <Route path="/harvest-bazaar" element={<CollectionPage title="Harvest & Bazaar" collectionName="Harvest & Bazaar" type="annual" />} />
+-              <Route path="/cathedraticum" element={<CollectionPage title="Cathedraticum" collectionName="Cathedraticum" type="annual" />} />
+-              <Route path="/project-sunday" element={<CollectionPage title="Project Sunday" collectionName="Project Sunday" type="annual" />} />
+               <Route path="/seminary-collections" element={<CollectionPage title="Seminary Collections" collectionName="Bigard Memorial Seminary" type="annual" />} />
+ 
+               <Route path="/debtors" element={<Debtors />} />
+diff --git a/client/src/components/layout/MobileSidebar.jsx b/client/src/components/layout/MobileSidebar.jsx
+index ff6f11d..115ecbc 100644
+--- a/client/src/components/layout/MobileSidebar.jsx
++++ b/client/src/components/layout/MobileSidebar.jsx
+@@ -2,7 +2,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
+ import {
+   LayoutDashboard, ReceiptText, ShieldAlert,
+   Users, LogOut, UploadCloud, KeyRound,
+-  BookOpen, Wheat, Church, GraduationCap, Sun, X
++  BookOpen, GraduationCap, X
+ } from 'lucide-react';
+ import { useAuth } from '@/context/AuthContext';
+ import dioceseLogo from '@/assets/diocese-logo.jpg';
+@@ -11,9 +11,6 @@ const navItems = [
+   { to: '/', icon: LayoutDashboard, label: 'Dashboard', roles: ['ADMIN','BISHOP'] },
+   { to: '/rectory', icon: ReceiptText, label: 'Rectory', roles: ['ADMIN','BISHOP','PRIEST'] },
+   { to: '/national-collections', icon: BookOpen, label: 'National Collections', roles: ['ADMIN','BISHOP'] },
+-  { to: '/harvest-bazaar', icon: Wheat, label: 'Harvest & Bazaar', roles: ['ADMIN','BISHOP'] },
+-  { to: '/cathedraticum', icon: Church, label: 'Cathedraticum', roles: ['ADMIN','BISHOP'] },
+-  { to: '/project-sunday', icon: Sun, label: 'Project Sunday', roles: ['ADMIN','BISHOP'] },
+   { to: '/seminary-collections', icon: GraduationCap, label: 'Seminary Collections', roles: ['ADMIN','BISHOP'] },
+   { to: '/debtors', icon: ShieldAlert, label: 'Debtors', roles: ['ADMIN','BISHOP'] },
+   { to: '/upload', icon: UploadCloud, label: 'Upload', roles: ['ADMIN'] },
+diff --git a/client/src/components/layout/Sidebar.jsx b/client/src/components/layout/Sidebar.jsx
+index 818bb54..edbded1 100644
+--- a/client/src/components/layout/Sidebar.jsx
++++ b/client/src/components/layout/Sidebar.jsx
+@@ -2,7 +2,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
+ import {
+   LayoutDashboard, ReceiptText, ShieldAlert,
+   Users, LogOut, UploadCloud, KeyRound,
+-  BookOpen, Wheat, Church, GraduationCap, Sun
++  BookOpen, GraduationCap
+ } from 'lucide-react';
+ import { useAuth } from '@/context/AuthContext';
+ import dioceseLogo from '@/assets/diocese-logo.jpg';
+@@ -11,9 +11,6 @@ const navItems = [
+   { to: '/', icon: LayoutDashboard, label: 'Dashboard', roles: ['ADMIN','BISHOP'] },
+   { to: '/rectory', icon: ReceiptText, label: 'Rectory', roles: ['ADMIN','BISHOP','PRIEST'] },
+   { to: '/national-collections', icon: BookOpen, label: 'National Collections', roles: ['ADMIN','BISHOP'] },
+-  { to: '/harvest-bazaar', icon: Wheat, label: 'Harvest & Bazaar', roles: ['ADMIN','BISHOP'] },
+-  { to: '/cathedraticum', icon: Church, label: 'Cathedraticum', roles: ['ADMIN','BISHOP'] },
+-  { to: '/project-sunday', icon: Sun, label: 'Project Sunday', roles: ['ADMIN','BISHOP'] },
+   { to: '/seminary-collections', icon: GraduationCap, label: 'Seminary Collections', roles: ['ADMIN','BISHOP'] },
+   { to: '/debtors', icon: ShieldAlert, label: 'Debtors', roles: ['ADMIN','BISHOP'] },
+   { to: '/upload', icon: UploadCloud, label: 'Upload', roles: ['ADMIN'] },
+diff --git a/schema.sql b/schema.sql
+index 1bdaf3d..3f93463 100644
+--- a/schema.sql
++++ b/schema.sql
+@@ -55,7 +55,7 @@ CREATE TABLE remittance_records (
+   id SERIAL PRIMARY KEY,
+   parish_id INTEGER NOT NULL,
+   year INTEGER NOT NULL,
+-  month INTEGER NOT NULL CHECK (month >= 1 AND month <= 12),
++  month INTEGER NOT NULL CHECK (month >= 0 AND month <= 12), -- 0 = annual/National Collections
+   uploaded_by INTEGER NOT NULL,
+   notes TEXT,
+   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+@@ -84,7 +84,7 @@ CREATE TABLE debtors (
+   parish_id INTEGER NOT NULL,
+   collection_id INTEGER NOT NULL,
+   year INTEGER NOT NULL,
+-  month INTEGER NOT NULL CHECK (month >= 1 AND month <= 12),
++  month INTEGER NOT NULL CHECK (month >= 0 AND month <= 12), -- 0 = annual/National Collections
+   expected_amount DECIMAL(15, 2),
+   actual_amount DECIMAL(15, 2) DEFAULT 0,
+   balance DECIMAL(15, 2) DEFAULT 0,
+diff --git a/src/graphql/resolvers.js b/src/graphql/resolvers.js
+index ee2dc62..8c3e314 100644
+--- a/src/graphql/resolvers.js
++++ b/src/graphql/resolvers.js
+@@ -7,7 +7,7 @@ import { logAuditEvent } from '../utils/auditLog.js';
+ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+ 
+ const MONTH_NAMES = [
+-  '', 'January', 'February', 'March', 'April', 'May', 'June',
++  'Annual', 'January', 'February', 'March', 'April', 'May', 'June',
+   'July', 'August', 'September', 'October', 'November', 'December'
+ ];
+ 
+diff --git a/src/services/spreadsheetParser.js b/src/services/spreadsheetParser.js
+index 1624c83..e6da96d 100644
+--- a/src/services/spreadsheetParser.js
++++ b/src/services/spreadsheetParser.js
+@@ -485,27 +485,47 @@ export async function generateDebtors(year, uploadedByUserId) {
+     );
+ 
+     // Build lookup: parish_id -> month -> collection_id -> amount
++    // Also track which collection_ids were ever reported at month=0 (annual/
++    // National Collections types) so we know which ones to generate debtors for.
+     const lookup = {};
++    const annualCollectionIds = new Set();
+     for (const row of allRecords) {
+       if (!lookup[row.parish_id]) lookup[row.parish_id] = {};
+       if (!lookup[row.parish_id][row.month]) lookup[row.parish_id][row.month] = {};
+       if (row.collection_id) {
+         lookup[row.parish_id][row.month][row.collection_id] = parseFloat(row.amount || 0);
++        if (row.month === 0) annualCollectionIds.add(row.collection_id);
+       }
+     }
+ 
+     // Build all upsert values
+     const values = [];
++
++    // Monthly (Rectory-style) debtors — months 1..currentMonth
+     for (const parish of parishes) {
+       for (let month = 1; month <= currentMonth; month++) {
+         for (const collection of collections) {
+           const amount = lookup[parish.id]?.[month]?.[collection.id] || 0;
+-          const isPaid = !!(lookup[parish.id]?.[month]);
++          // isPaid reflects whether THIS collection specifically has a
++          // reported amount for the parish/month, not just "some record exists".
++          const isPaid = amount > 0;
+           values.push([parish.id, collection.id, year, month, amount, amount, 0, isPaid]);
+         }
+       }
+     }
+ 
++    // Annual (National Collections) debtors — month=0, one row per parish per
++    // collection type that actually appeared in a National Collections upload
++    // for this year. We don't generate rows for collection types never used
++    // as annual collections, so Rectory etc. doesn't get bogus month=0 rows.
++    for (const parish of parishes) {
++      for (const collectionId of annualCollectionIds) {
++        const amount = lookup[parish.id]?.[0]?.[collectionId] || 0;
++        const isPaid = amount > 0;
++        values.push([parish.id, collectionId, year, 0, amount, amount, 0, isPaid]);
++      }
++    }
++
+     if (values.length === 0) return;
+ 
+     // Batch upsert in chunks of 100 to avoid parameter limits

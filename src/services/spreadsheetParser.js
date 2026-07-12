@@ -485,24 +485,44 @@ export async function generateDebtors(year, uploadedByUserId) {
     );
 
     // Build lookup: parish_id -> month -> collection_id -> amount
+    // Also track which collection_ids were ever reported at month=0 (annual/
+    // National Collections types) so we know which ones to generate debtors for.
     const lookup = {};
+    const annualCollectionIds = new Set();
     for (const row of allRecords) {
       if (!lookup[row.parish_id]) lookup[row.parish_id] = {};
       if (!lookup[row.parish_id][row.month]) lookup[row.parish_id][row.month] = {};
       if (row.collection_id) {
         lookup[row.parish_id][row.month][row.collection_id] = parseFloat(row.amount || 0);
+        if (row.month === 0) annualCollectionIds.add(row.collection_id);
       }
     }
 
     // Build all upsert values
     const values = [];
+
+    // Monthly (Rectory-style) debtors — months 1..currentMonth
     for (const parish of parishes) {
       for (let month = 1; month <= currentMonth; month++) {
         for (const collection of collections) {
           const amount = lookup[parish.id]?.[month]?.[collection.id] || 0;
-          const isPaid = !!(lookup[parish.id]?.[month]);
+          // isPaid reflects whether THIS collection specifically has a
+          // reported amount for the parish/month, not just "some record exists".
+          const isPaid = amount > 0;
           values.push([parish.id, collection.id, year, month, amount, amount, 0, isPaid]);
         }
+      }
+    }
+
+    // Annual (National Collections) debtors — month=0, one row per parish per
+    // collection type that actually appeared in a National Collections upload
+    // for this year. We don't generate rows for collection types never used
+    // as annual collections, so Rectory etc. doesn't get bogus month=0 rows.
+    for (const parish of parishes) {
+      for (const collectionId of annualCollectionIds) {
+        const amount = lookup[parish.id]?.[0]?.[collectionId] || 0;
+        const isPaid = amount > 0;
+        values.push([parish.id, collectionId, year, 0, amount, amount, 0, isPaid]);
       }
     }
 
