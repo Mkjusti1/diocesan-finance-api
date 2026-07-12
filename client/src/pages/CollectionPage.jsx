@@ -19,7 +19,7 @@ function ErrorBanner({ error, onRetry }) {
         <p style={{ fontSize: '13px', fontWeight: 700, color: '#B91C1C' }}>Couldn't load data</p>
         <p style={{ fontSize: '12px', color: '#991B1B', marginTop: '2px' }}>{error.message}</p>
       </div>
-      <button onClick={onRetry} style={{
+      <button onClick={() => onRetry()} style={{
         padding: '8px 14px', borderRadius: '8px', border: '1px solid #FCA5A5',
         backgroundColor: 'white', color: '#B91C1C', fontSize: '12px', fontWeight: 700, cursor: 'pointer'
       }}>Retry</button>
