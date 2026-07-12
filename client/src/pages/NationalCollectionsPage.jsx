@@ -29,7 +29,7 @@ export function NationalCollectionsPage() {
     setSearchParams({ year: selectedYear }, { replace: true });
   }, [selectedYear]);
 
-  const { data, loading } = useQuery(GET_NATIONAL_DATA);
+  const { data, loading, error, refetch } = useQuery(GET_NATIONAL_DATA, { errorPolicy: 'all' });
 
   const parishes = data?.parishes || [];
   const allSources = data?.remittanceSources || [];
@@ -83,6 +83,23 @@ export function NationalCollectionsPage() {
           </select>
         </div>
       </div>
+
+      {/* Error banner */}
+      {error && (
+        <div style={{
+          backgroundColor: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: '10px',
+          padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px'
+        }}>
+          <div>
+            <p style={{ fontSize: '13px', fontWeight: 700, color: '#B91C1C' }}>Couldn't load National Collections data</p>
+            <p style={{ fontSize: '12px', color: '#991B1B', marginTop: '2px' }}>{error.message}</p>
+          </div>
+          <button onClick={() => refetch()} style={{
+            padding: '8px 14px', borderRadius: '8px', border: '1px solid #FCA5A5',
+            backgroundColor: 'white', color: '#B91C1C', fontSize: '12px', fontWeight: 700, cursor: 'pointer'
+          }}>Retry</button>
+        </div>
+      )}
 
       {/* Summary cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px' }}>

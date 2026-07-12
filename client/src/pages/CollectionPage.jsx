@@ -8,6 +8,25 @@ const currentYear = new Date().getFullYear();
 const YEARS = Array.from({ length: currentYear - 2022 }, (_, i) => currentYear - i);
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
+function ErrorBanner({ error, onRetry }) {
+  if (!error) return null;
+  return (
+    <div style={{
+      backgroundColor: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: '10px',
+      padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px'
+    }}>
+      <div>
+        <p style={{ fontSize: '13px', fontWeight: 700, color: '#B91C1C' }}>Couldn't load data</p>
+        <p style={{ fontSize: '12px', color: '#991B1B', marginTop: '2px' }}>{error.message}</p>
+      </div>
+      <button onClick={onRetry} style={{
+        padding: '8px 14px', borderRadius: '8px', border: '1px solid #FCA5A5',
+        backgroundColor: 'white', color: '#B91C1C', fontSize: '12px', fontWeight: 700, cursor: 'pointer'
+      }}>Retry</button>
+    </div>
+  );
+}
+
 const GET_COLLECTION_DATA = gql`
   query CollectionData($year: Int) {
     parishes { id name }
@@ -46,8 +65,9 @@ export function CollectionPage({ title, collectionName, type = 'monthly' }) {
 
   const isAnnual = type === 'annual';
 
-  const { data, loading } = useQuery(isAnnual ? GET_ALL_COLLECTION_DATA : GET_COLLECTION_DATA, {
-    variables: isAnnual ? {} : { year: selectedYear }
+  const { data, loading, error, refetch } = useQuery(isAnnual ? GET_ALL_COLLECTION_DATA : GET_COLLECTION_DATA, {
+    variables: isAnnual ? {} : { year: selectedYear },
+    errorPolicy: 'all'
   });
 
   const parishes = data?.parishes || [];
@@ -101,6 +121,8 @@ export function CollectionPage({ title, collectionName, type = 'monthly' }) {
           <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#1a0a06', marginBottom: '4px' }}>{title}</h1>
           <p style={{ fontSize: '13px', color: '#A7A68B' }}>Annual collection across all parishes</p>
         </div>
+
+        <ErrorBanner error={error} onRetry={refetch} />
 
         {/* Summary cards */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px' }}>
@@ -236,6 +258,7 @@ export function CollectionPage({ title, collectionName, type = 'monthly' }) {
         </div>
       </div>
 
+      <ErrorBanner error={error} onRetry={refetch} />
       {/* Summary cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px' }}>
         {[

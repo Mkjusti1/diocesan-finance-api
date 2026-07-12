@@ -5,12 +5,36 @@ import { formatCurrency } from '@/lib/utils';
 const YEAR = new Date().getFullYear();
 
 export function Debtors() {
-  const { data, loading } = useQuery(GET_DEBTORS, { variables: { year: YEAR } });
+  const { data, loading } = useQuery(GET_DEBTORS, { variables: { year: YEAR, overdueOnly: true } });
   if (loading) return <div style={{ padding: '60px', textAlign: 'center', fontSize: '13px', color: '#A7A68B' }}>Loading debtors...</div>;
 
   const debtors = data?.debtors || [];
   const unpaid = debtors.filter(d => !d.isPaid);
   const totalOutstanding = unpaid.reduce((sum, d) => sum + d.balance, 0);
+
+  const downloadCSV = () => {
+    const headers = ['Parish', 'Period', 'Expected', 'Actual', 'Balance', 'Status'];
+    const rows = debtors.map(d => [
+      d.parish.name,
+      `${d.monthName} ${d.year}`,
+      d.expectedAmount,
+      d.actualAmount,
+      d.balance,
+      d.isPaid ? 'Paid' : 'Outstanding'
+    ]);
+    const csv = [headers, ...rows]
+      .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `debtors-${YEAR}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -24,13 +48,22 @@ export function Debtors() {
           </p>
         </div>
         {unpaid.length > 0 && (
-          <div style={{ textAlign: 'right' }}>
-            <p style={{ fontSize: '11px', fontWeight: 700, color: '#A7A68B', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-              Total Outstanding
-            </p>
-            <p style={{ fontSize: '26px', fontWeight: 700, color: '#D3542A', lineHeight: 1.1, marginTop: '4px' }}>
-              {formatCurrency(totalOutstanding)}
-            </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div style={{ textAlign: 'right' }}>
+              <p style={{ fontSize: '11px', fontWeight: 700, color: '#A7A68B', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                Total Outstanding
+              </p>
+              <p style={{ fontSize: '26px', fontWeight: 700, color: '#D3542A', lineHeight: 1.1, marginTop: '4px' }}>
+                {formatCurrency(totalOutstanding)}
+              </p>
+            </div>
+            <button onClick={downloadCSV} style={{
+              padding: '10px 16px', borderRadius: '8px', border: '1px solid #F5E3D7',
+              backgroundColor: 'white', color: '#8B4C39', fontSize: '13px', fontWeight: 700,
+              cursor: 'pointer', whiteSpace: 'nowrap'
+            }}>
+              Download CSV
+            </button>
           </div>
         )}
       </div>
