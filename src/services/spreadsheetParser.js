@@ -464,17 +464,13 @@ export async function processUpload(filePath, year, fileType = 'xlsx', uploadedB
 export async function generateDebtors(year, uploadedByUserId) {
   const client = await pool.connect();
   try {
-    // Get all parishes
     const { rows: parishes } = await client.query('SELECT id FROM parishes');
-    // Get all active collections
     const { rows: collections } = await client.query('SELECT id FROM collections WHERE is_active = true');
 
     if (parishes.length === 0 || collections.length === 0) return;
 
-    // Get current month ceiling
     const currentMonth = new Date().getFullYear() === parseInt(year) ? new Date().getMonth() : 12;
 
-    // Fetch ALL remittance records and line items for this year in one query
     const { rows: allRecords } = await client.query(
       `SELECT rr.id, rr.parish_id, rr.month,
               rli.collection_id, COALESCE(rli.amount, 0) as amount
@@ -484,9 +480,6 @@ export async function generateDebtors(year, uploadedByUserId) {
       [year]
     );
 
-    // Build lookup: parish_id -> month -> collection_id -> amount
-    // Also track which collection_ids were ever reported at month=0 (annual/
-    // National Collections types) so we know which ones to generate debtors for.
     const lookup = {};
     const annualCollectionIds = new Set();
     for (const row of allRecords) {
@@ -498,26 +491,18 @@ export async function generateDebtors(year, uploadedByUserId) {
       }
     }
 
-    // Build all upsert values
     const values = [];
 
-    // Monthly (Rectory-style) debtors — months 1..currentMonth
     for (const parish of parishes) {
       for (let month = 1; month <= currentMonth; month++) {
         for (const collection of collections) {
           const amount = lookup[parish.id]?.[month]?.[collection.id] || 0;
-          // isPaid reflects whether THIS collection specifically has a
-          // reported amount for the parish/month, not just "some record exists".
           const isPaid = amount > 0;
           values.push([parish.id, collection.id, year, month, amount, amount, 0, isPaid]);
         }
       }
     }
 
-    // Annual (National Collections) debtors — month=0, one row per parish per
-    // collection type that actually appeared in a National Collections upload
-    // for this year. We don't generate rows for collection types never used
-    // as annual collections, so Rectory etc. doesn't get bogus month=0 rows.
     for (const parish of parishes) {
       for (const collectionId of annualCollectionIds) {
         const amount = lookup[parish.id]?.[0]?.[collectionId] || 0;
@@ -528,7 +513,6 @@ export async function generateDebtors(year, uploadedByUserId) {
 
     if (values.length === 0) return;
 
-    // Batch upsert in chunks of 100 to avoid parameter limits
     await client.query('BEGIN');
     const chunkSize = 100;
     for (let i = 0; i < values.length; i += chunkSize) {
