@@ -16,7 +16,6 @@ export function Debtors() {
 
   const debtors = data?.debtors || [];
   const unpaid = debtors.filter(d => !d.isPaid);
-  const totalOutstanding = unpaid.reduce((sum, d) => sum + d.balance, 0);
 
   const handleRegenerate = async () => {
     try {
@@ -64,23 +63,13 @@ export function Debtors() {
           </p>
         </div>
         {unpaid.length > 0 && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <div style={{ textAlign: 'right' }}>
-              <p style={{ fontSize: '11px', fontWeight: 700, color: '#A7A68B', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                Total Outstanding
-              </p>
-              <p style={{ fontSize: '26px', fontWeight: 700, color: '#D3542A', lineHeight: 1.1, marginTop: '4px' }}>
-                {formatCurrency(totalOutstanding)}
-              </p>
-            </div>
-            <button onClick={downloadCSV} style={{
-              padding: '10px 16px', borderRadius: '8px', border: '1px solid #F5E3D7',
-              backgroundColor: 'white', color: '#8B4C39', fontSize: '13px', fontWeight: 700,
-              cursor: 'pointer', whiteSpace: 'nowrap'
-            }}>
-              Download CSV
-            </button>
-          </div>
+          <button onClick={downloadCSV} style={{
+            padding: '10px 16px', borderRadius: '8px', border: '1px solid #F5E3D7',
+            backgroundColor: 'white', color: '#8B4C39', fontSize: '13px', fontWeight: 700,
+            cursor: 'pointer', whiteSpace: 'nowrap'
+          }}>
+            Download CSV
+          </button>
         )}
       </div>
 
