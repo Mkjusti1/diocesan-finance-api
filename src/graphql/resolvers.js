@@ -342,7 +342,7 @@ export const resolvers = {
       const params = [];
 
       if (year) { params.push(year); query += ` AND year = $${params.length}`; }
-      if (overdueOnly) { query += ' AND is_paid = false AND balance > 0'; }
+      if (overdueOnly) { query += ' AND is_paid = false'; }
 
       query += ' ORDER BY year DESC, month DESC, parish_id';
 
