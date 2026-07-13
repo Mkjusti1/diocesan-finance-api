@@ -24,3 +24,5 @@ export const CREATE_REMITTANCE = gql`mutation CreateRemittance($input: CreateRem
 export const GET_PARISH_SUMMARIES = gql`query ParishSummaries($year: Int!) { parishSummaries(year: $year) { parish { id name diocese } totalCollected monthsReported lastReported outstandingBalance } }`;
 export const CREATE_USER = gql`mutation CreateUser($input: CreateUserInput!) { createUser(input: $input) { id name email role parishId priestToken } }`;
 export const GET_DEBTORS = gql`query GetDebtors($year: Int, $overdueOnly: Boolean) { debtors(year: $year, overdueOnly: $overdueOnly) { id year month monthName expectedAmount actualAmount balance isPaid notes parish { id name } } }`;
+
+export const REGENERATE_DEBTORS = gql`mutation RegenerateDebtors($year: Int) { regenerateDebtors(year: $year) { success years } }`;

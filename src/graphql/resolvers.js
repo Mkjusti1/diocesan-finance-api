@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { pool } from '../db/pool.js';
 import { logAuditEvent } from '../utils/auditLog.js';
+import { generateDebtors } from '../services/spreadsheetParser.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
@@ -526,6 +527,28 @@ export const resolvers = {
 
       const token = generateToken(dbUser);
       return { token, user: mapUser(dbUser) };
+    },
+
+    // Admin-only: backfill/recalculate debtors for a year (or every year that
+    // has data, if no year given). Safe to run repeatedly — it upserts.
+    regenerateDebtors: async (_, { year }, { user }) => {
+      requireRole(user, 'ADMIN');
+
+      let years;
+      if (year) {
+        years = [year];
+      } else {
+        const { rows } = await pool.query('SELECT DISTINCT year FROM remittance_records ORDER BY year');
+        years = rows.map(r => r.year);
+      }
+
+      for (const y of years) {
+        await generateDebtors(y, user.id);
+      }
+
+      await logAuditEvent(user.id, 'REGENERATE_DEBTORS', 'debtors', null, null, { years });
+
+      return { success: true, years };
     },
 
     loginWithToken: async (_, { token: priestToken }) => {

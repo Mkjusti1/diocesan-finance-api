@@ -85,6 +85,11 @@ export const typeDefs = gql`
     user: User!
   }
 
+  type RegenerateDebtorsPayload {
+    success: Boolean!
+    years: [Int!]!
+  }
+
   type MonthlySummary {
     month: Int!
     monthName: String!
@@ -182,6 +187,7 @@ export const typeDefs = gql`
   type Mutation {
     login(input: LoginInput!): AuthPayload!
     loginWithToken(token: String!): AuthPayload!
+    regenerateDebtors(year: Int): RegenerateDebtorsPayload!
     changePassword(currentPassword: String!, newPassword: String!): Boolean!
     createUser(input: CreateUserInput!): User!
     deleteUser(id: ID!): Boolean!
