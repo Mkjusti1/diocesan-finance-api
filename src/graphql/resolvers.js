@@ -162,6 +162,7 @@ export const resolvers = {
 
   Debtor: {
     parish: async (parent) => {
+      if (parent._parishObj !== undefined) return parent._parishObj;
       const { rows } = await pool.query('SELECT * FROM parishes WHERE id = $1', [parent._parishId]);
       return mapParish(rows[0]);
     },
@@ -347,7 +348,18 @@ export const resolvers = {
       query += ' ORDER BY year DESC, month DESC, parish_id';
 
       const { rows } = await pool.query(query, params);
-      return rows.map(mapDebtor);
+      const debtorRows = rows.map(mapDebtor);
+      if (debtorRows.length === 0) return debtorRows;
+
+      // Batch-fetch parishes in 1 query instead of letting the Debtor.parish
+      // field resolver below fire one query per row (was N+1, up to 20k+ queries).
+      const parishIds = [...new Set(debtorRows.map(d => d._parishId))];
+      const { rows: parishRows } = await pool.query('SELECT * FROM parishes WHERE id = ANY($1)', [parishIds]);
+      const parishById = {};
+      for (const row of parishRows) parishById[row.id] = mapParish(row);
+      for (const d of debtorRows) d._parishObj = parishById[d._parishId] || null;
+
+      return debtorRows;
     },
 
     parishDebtors: async (_, { parishId, year }, { user }) => {
