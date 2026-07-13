@@ -1,16 +1,32 @@
-import { useQuery } from '@apollo/client/react';
-import { GET_DEBTORS } from '@/graphql/queries';
+import { useState } from 'react';
+import { useQuery, useMutation } from '@apollo/client/react';
+import { GET_DEBTORS, REGENERATE_DEBTORS } from '@/graphql/queries';
 import { formatCurrency } from '@/lib/utils';
+import { useAuth } from '@/context/AuthContext';
 
 const YEAR = new Date().getFullYear();
 
 export function Debtors() {
-  const { data, loading } = useQuery(GET_DEBTORS, { variables: { year: YEAR, overdueOnly: true } });
+  const { user } = useAuth();
+  const [confirming, setConfirming] = useState(false);
+  const { data, loading, refetch } = useQuery(GET_DEBTORS, { variables: { year: YEAR, overdueOnly: true } });
+  const [regenerateDebtors, { loading: regenerating, data: regenData, error: regenError }] = useMutation(REGENERATE_DEBTORS);
+
   if (loading) return <div style={{ padding: '60px', textAlign: 'center', fontSize: '13px', color: '#A7A68B' }}>Loading debtors...</div>;
 
   const debtors = data?.debtors || [];
   const unpaid = debtors.filter(d => !d.isPaid);
   const totalOutstanding = unpaid.reduce((sum, d) => sum + d.balance, 0);
+
+  const handleRegenerate = async () => {
+    try {
+      await regenerateDebtors({ variables: { year: null } });
+      await refetch();
+      setConfirming(false);
+    } catch (e) {
+      // error surfaced via regenError below
+    }
+  };
 
   const downloadCSV = () => {
     const headers = ['Parish', 'Period', 'Expected', 'Actual', 'Balance', 'Status'];
@@ -67,6 +83,58 @@ export function Debtors() {
           </div>
         )}
       </div>
+
+      {/* Admin: regenerate debtors for all years */}
+      {user?.role === 'ADMIN' && (
+        <div style={{
+          backgroundColor: '#FFF9F2', border: '1px solid #F5E3D7', borderRadius: '10px',
+          padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap'
+        }}>
+          <div>
+            <p style={{ fontSize: '13px', fontWeight: 700, color: '#8B4C39' }}>Regenerate debtors for all years</p>
+            <p style={{ fontSize: '12px', color: '#A7A68B', marginTop: '2px' }}>
+              Recalculates debtor records for every year with uploaded data, including National Collections. Safe to run anytime — it overwrites existing debtor rows rather than duplicating them.
+            </p>
+            {regenData?.regenerateDebtors?.success && (
+              <p style={{ fontSize: '12px', color: '#166534', marginTop: '6px', fontWeight: 600 }}>
+                Done — regenerated for {regenData.regenerateDebtors.years.join(', ')}.
+              </p>
+            )}
+            {regenError && (
+              <p style={{ fontSize: '12px', color: '#B91C1C', marginTop: '6px', fontWeight: 600 }}>
+                Failed: {regenError.message}
+              </p>
+            )}
+          </div>
+          {!confirming ? (
+            <button onClick={() => setConfirming(true)} disabled={regenerating} style={{
+              padding: '10px 16px', borderRadius: '8px', border: '1px solid #F5E3D7',
+              backgroundColor: 'white', color: '#8B4C39', fontSize: '13px', fontWeight: 700,
+              cursor: 'pointer', whiteSpace: 'nowrap'
+            }}>
+              Regenerate Debtors
+            </button>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button onClick={() => setConfirming(false)} disabled={regenerating} style={{
+                padding: '10px 16px', borderRadius: '8px', border: '1px solid #F5E3D7',
+                backgroundColor: 'white', color: '#A7A68B', fontSize: '13px', fontWeight: 700,
+                cursor: 'pointer', whiteSpace: 'nowrap'
+              }}>
+                Cancel
+              </button>
+              <button onClick={handleRegenerate} disabled={regenerating} style={{
+                padding: '10px 16px', borderRadius: '8px', border: '1px solid #D3542A',
+                backgroundColor: '#D3542A', color: 'white', fontSize: '13px', fontWeight: 700,
+                cursor: regenerating ? 'default' : 'pointer', whiteSpace: 'nowrap',
+                opacity: regenerating ? 0.7 : 1
+              }}>
+                {regenerating ? 'Regenerating…' : 'Confirm — run now'}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Table */}
       <div style={{
