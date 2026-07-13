@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import { pool } from '../db/pool.js';
 import { logAuditEvent } from '../utils/auditLog.js';
 import { generateDebtors } from '../services/spreadsheetParser.js';
+import { ensurePriestTokenForParish } from '../utils/priestTokens.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
@@ -390,7 +391,7 @@ export const resolvers = {
           `SELECT COALESCE(SUM(rli.amount), 0) as total
            FROM remittance_line_items rli
            JOIN remittance_records rr ON rli.remittance_record_id = rr.id
-           WHERE rr.year = $1 AND rr.month BETWEEN 1 AND 12`,
+           WHERE rr.year = $1`,
           [year]
         ),
         pool.query('SELECT COUNT(*) as count FROM parishes'),
@@ -410,7 +411,7 @@ export const resolvers = {
           `SELECT rr.*, COALESCE(SUM(rli.amount), 0) as total_amount
            FROM remittance_records rr
            LEFT JOIN remittance_line_items rli ON rr.id = rli.remittance_record_id
-           WHERE rr.year = $1 AND rr.month BETWEEN 1 AND 12
+           WHERE rr.year = $1
            GROUP BY rr.id
            ORDER BY rr.created_at DESC
            LIMIT 5`,
@@ -456,11 +457,11 @@ export const resolvers = {
       const { rows } = await pool.query(
         `SELECT p.*,
                 COALESCE(SUM(rli.amount), 0) as total_collected,
-                COUNT(DISTINCT rr.month) as months_reported,
+                COUNT(DISTINCT CASE WHEN rr.month BETWEEN 1 AND 12 THEN rr.month END) as months_reported,
                 MAX(rr.created_at) as last_reported,
                 COALESCE(SUM(d.balance), 0) as outstanding_balance
          FROM parishes p
-         LEFT JOIN remittance_records rr ON p.id = rr.parish_id AND rr.year = $1 AND rr.month BETWEEN 1 AND 12
+         LEFT JOIN remittance_records rr ON p.id = rr.parish_id AND rr.year = $1
          LEFT JOIN remittance_line_items rli ON rr.id = rli.remittance_record_id
          LEFT JOIN debtors d ON p.id = d.parish_id AND d.year = $1 AND d.is_paid = false
          GROUP BY p.id
@@ -561,6 +562,26 @@ export const resolvers = {
       await logAuditEvent(user.id, 'REGENERATE_DEBTORS', 'debtors', null, null, { years });
 
       return { success: true, years };
+    },
+
+    // Admin-only: create a priest login token for every parish that doesn't
+    // already have an active one. Uses the parish name as the account name.
+    // Safe to run repeatedly — parishes that already have a priest are skipped.
+    generateAllPriestTokens: async (_, __, { user }) => {
+      requireRole(user, 'ADMIN');
+
+      const { rows: parishes } = await pool.query('SELECT id, name FROM parishes ORDER BY name');
+
+      let created = 0;
+      let skipped = 0;
+      for (const parish of parishes) {
+        const newUser = await ensurePriestTokenForParish(parish.id, parish.name, user.id);
+        if (newUser) created++; else skipped++;
+      }
+
+      await logAuditEvent(user.id, 'GENERATE_ALL_PRIEST_TOKENS', 'users', null, null, { created, skipped });
+
+      return { created, skipped, total: parishes.length };
     },
 
     loginWithToken: async (_, { token: priestToken }) => {
@@ -667,6 +688,8 @@ export const resolvers = {
          RETURNING *`,
         [name, location || null, diocese || null, contactEmail || null, contactPhone || null]
       );
+
+      await ensurePriestTokenForParish(rows[0].id, rows[0].name, user.id);
 
       await logAuditEvent(user.id, 'CREATE_PARISH', 'parishes', rows[0].id, null, input);
       return mapParish(rows[0]);

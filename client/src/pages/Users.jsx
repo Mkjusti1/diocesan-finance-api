@@ -26,6 +26,12 @@ const DELETE_USER = gql`
   mutation DeleteUser($id: ID!) { deleteUser(id: $id) }
 `;
 
+const GENERATE_ALL_TOKENS = gql`
+  mutation GenerateAllPriestTokens {
+    generateAllPriestTokens { created skipped total }
+  }
+`;
+
 function CopyButton({ text }) {
   const [copied, setCopied] = useState(false);
   const copy = () => {
@@ -97,6 +103,7 @@ export function Users() {
   const [modal, setModal] = useState(false);
   const [parishSearch, setParishSearch] = useState('');
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'PRIEST', parishId: '' });
+  const [confirmingBulk, setConfirmingBulk] = useState(false);
 
   const { data: parishData } = useQuery(GET_PARISHES);
   const { data: usersData, refetch } = useQuery(GET_ALL_USERS);
@@ -110,15 +117,21 @@ export function Users() {
   const [regenerateToken] = useMutation(REGENERATE_TOKEN, {
     onCompleted: () => refetch()
   });
+  const [generateAllTokens, { loading: bulkGenerating, data: bulkData, error: bulkError }] = useMutation(GENERATE_ALL_TOKENS, {
+    onCompleted: () => refetch()
+  });
 
   const filteredParishes = (parishData?.parishes || []).filter(p =>
     p.name.toLowerCase().includes(parishSearch.toLowerCase())
   );
 
+  const selectedParishName = parishData?.parishes.find(p => p.id === form.parishId)?.name || '';
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     const input = {
-      name: form.name, role: form.role,
+      name: form.role === 'PRIEST' ? selectedParishName : form.name,
+      role: form.role,
       ...(form.role !== 'PRIEST' && { email: form.email, password: form.password }),
       ...(form.role === 'PRIEST' && { parishId: form.parishId }),
     };
@@ -126,6 +139,11 @@ export function Users() {
     setModal(false);
     setForm({ name: '', email: '', password: '', role: 'PRIEST', parishId: '' });
     setParishSearch('');
+  };
+
+  const handleGenerateAll = async () => {
+    await generateAllTokens();
+    setConfirmingBulk(false);
   };
 
   const handleDelete = async (id, name) => {
@@ -217,8 +235,47 @@ export function Users() {
           <p style={{ fontSize: '12px', fontWeight: 700, color: '#8B4C39', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
             Priest Accounts & Login Tokens
           </p>
-          <span style={{ fontSize: '12px', color: '#A7A68B' }}>{priests.length} priests</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <span style={{ fontSize: '12px', color: '#A7A68B' }}>{priests.length} priests</span>
+            {!confirmingBulk ? (
+              <button onClick={() => setConfirmingBulk(true)} disabled={bulkGenerating} style={{
+                padding: '7px 12px', borderRadius: '7px', border: '1px solid #F5E3D7',
+                backgroundColor: 'white', color: '#8B4C39', fontSize: '12px', fontWeight: 700,
+                cursor: 'pointer', whiteSpace: 'nowrap'
+              }}>
+                Generate All Priest Tokens
+              </button>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <button onClick={() => setConfirmingBulk(false)} disabled={bulkGenerating} style={{
+                  padding: '7px 12px', borderRadius: '7px', border: '1px solid #F5E3D7',
+                  backgroundColor: 'white', color: '#A7A68B', fontSize: '12px', fontWeight: 700, cursor: 'pointer'
+                }}>
+                  Cancel
+                </button>
+                <button onClick={handleGenerateAll} disabled={bulkGenerating} style={{
+                  padding: '7px 12px', borderRadius: '7px', border: '1px solid #D3542A',
+                  backgroundColor: '#D3542A', color: 'white', fontSize: '12px', fontWeight: 700,
+                  cursor: bulkGenerating ? 'default' : 'pointer', opacity: bulkGenerating ? 0.7 : 1
+                }}>
+                  {bulkGenerating ? 'Generating…' : 'Confirm'}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
+        {(bulkData || bulkError) && (
+          <div style={{ padding: '10px 20px', borderBottom: '1px solid #F5E3D7', backgroundColor: bulkError ? '#FEF2F2' : '#F0FDF4' }}>
+            {bulkError ? (
+              <p style={{ fontSize: '12px', color: '#B91C1C', fontWeight: 600 }}>Failed: {bulkError.message}</p>
+            ) : (
+              <p style={{ fontSize: '12px', color: '#166534', fontWeight: 600 }}>
+                Created {bulkData.generateAllPriestTokens.created} new token{bulkData.generateAllPriestTokens.created !== 1 ? 's' : ''}
+                {' '}({bulkData.generateAllPriestTokens.skipped} parish{bulkData.generateAllPriestTokens.skipped !== 1 ? 'es' : ''} already had one, {bulkData.generateAllPriestTokens.total} total parishes).
+              </p>
+            )}
+          </div>
+        )}
 
         {priests.length === 0 ? (
           <div style={{ padding: '40px', textAlign: 'center', fontSize: '13px', color: '#A7A68B' }}>
@@ -280,10 +337,6 @@ export function Users() {
             </div>
             <form onSubmit={handleSubmit} style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
-                <label style={labelStyle}>Full Name *</label>
-                <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required style={inputStyle} placeholder="e.g. Fr. John Obi" />
-              </div>
-              <div>
                 <label style={labelStyle}>Role *</label>
                 <select value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))}
                   style={{ ...inputStyle, cursor: 'pointer' }}>
@@ -293,6 +346,10 @@ export function Users() {
                 </select>
               </div>
               {form.role !== 'PRIEST' && <>
+                <div>
+                  <label style={labelStyle}>Full Name *</label>
+                  <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required style={inputStyle} placeholder="e.g. Fr. John Obi" />
+                </div>
                 <div>
                   <label style={labelStyle}>Email *</label>
                   <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} required style={inputStyle} />
@@ -305,6 +362,9 @@ export function Users() {
               {form.role === 'PRIEST' && (
                 <div>
                   <label style={labelStyle}>Parish *</label>
+                  <p style={{ fontSize: '12px', color: '#A7A68B', marginBottom: '8px' }}>
+                    The parish name is used as the account name — no separate priest name is needed.
+                  </p>
                   <input
                     type="text" placeholder="Type to search parishes..."
                     value={parishSearch}
@@ -326,7 +386,7 @@ export function Users() {
                   )}
                   {form.parishId && (
                     <p style={{ fontSize: '12px', color: '#166534', marginTop: '4px', fontWeight: 600 }}>
-                      ✓ {parishData?.parishes.find(p => p.id === form.parishId)?.name}
+                      ✓ Account will be named "{selectedParishName}"
                     </p>
                   )}
                 </div>

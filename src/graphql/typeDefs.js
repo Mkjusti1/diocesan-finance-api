@@ -90,6 +90,12 @@ export const typeDefs = gql`
     years: [Int!]!
   }
 
+  type GenerateAllPriestTokensPayload {
+    created: Int!
+    skipped: Int!
+    total: Int!
+  }
+
   type MonthlySummary {
     month: Int!
     monthName: String!
@@ -188,6 +194,7 @@ export const typeDefs = gql`
     login(input: LoginInput!): AuthPayload!
     loginWithToken(token: String!): AuthPayload!
     regenerateDebtors(year: Int): RegenerateDebtorsPayload!
+    generateAllPriestTokens: GenerateAllPriestTokensPayload!
     changePassword(currentPassword: String!, newPassword: String!): Boolean!
     createUser(input: CreateUserInput!): User!
     deleteUser(id: ID!): Boolean!

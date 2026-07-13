@@ -99,8 +99,9 @@ export class SpreadsheetParser {
     });
   }
 
-  // Auto-create a parish if it doesn't exist
-  async ensureParish(name) {
+  // Auto-create a parish if it doesn't exist. Also auto-creates a priest
+  // login token for it, using the parish name (matches manual creation).
+  async ensureParish(name, createdByUserId) {
     const trimmed = name.trim();
     const existing = await pool.query(
       'SELECT id FROM parishes WHERE LOWER(name) = LOWER($1)', [trimmed]
@@ -112,7 +113,10 @@ export class SpreadsheetParser {
       'INSERT INTO parishes (name, diocese) VALUES ($1, $2) RETURNING id',
       [trimmed, 'Catholic Diocese of Aguleri']
     );
-    return { id: inserted.rows[0].id, created: true };
+    const parishId = inserted.rows[0].id;
+    const { ensurePriestTokenForParish } = await import('../utils/priestTokens.js');
+    await ensurePriestTokenForParish(parishId, trimmed, createdByUserId);
+    return { id: parishId, created: true };
   }
 
   // Auto-create a collection if it doesn't exist

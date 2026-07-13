@@ -176,7 +176,7 @@ app.post('/api/upload/horizontal', authenticateToken, upload.single('file'), asy
 
     for (const record of rawRecords) {
       if (!parishCache[record.parishName]) {
-        const result = await parser.ensureParish(record.parishName);
+        const result = await parser.ensureParish(record.parishName, req.user.id);
         parishCache[record.parishName] = result.id;
         if (result.created && !summary.newParishes.includes(record.parishName)) {
           summary.newParishes.push(record.parishName);
@@ -286,7 +286,7 @@ app.post('/api/upload/national', authenticateToken, upload.single('file'), async
 
     for (const record of rawRecords) {
       if (!parishCache[record.parishName]) {
-        const result = await parser.ensureParish(record.parishName);
+        const result = await parser.ensureParish(record.parishName, req.user.id);
         parishCache[record.parishName] = result.id;
         if (result.created && !summary.newParishes.includes(record.parishName))
           summary.newParishes.push(record.parishName);
