@@ -115,6 +115,7 @@ export const resolvers = {
 
   User: {
     parish: async (parent) => {
+      if (parent._parishObj !== undefined) return parent._parishObj;
       if (!parent.parishId) return null;
       if (parent._parish) return parent._parish;
       const { rows } = await pool.query('SELECT * FROM parishes WHERE id = $1', [parent.parishId]);
@@ -124,6 +125,7 @@ export const resolvers = {
 
   RemittanceRecord: {
     parish: async (parent) => {
+      if (parent._parishObj !== undefined) return parent._parishObj;
       const { rows } = await pool.query('SELECT * FROM parishes WHERE id = $1', [parent._parishId]);
       return mapParish(rows[0]);
     },
@@ -133,6 +135,7 @@ export const resolvers = {
       return mapUser(rows[0]);
     },
     lineItems: async (parent) => {
+      if (parent._lineItems !== undefined) return parent._lineItems;
       const { rows } = await pool.query(
         `SELECT rli.*, c.name as collection_name, c.description as collection_description,
                 c.is_active as collection_is_active, c.created_at as collection_created_at
@@ -242,7 +245,53 @@ export const resolvers = {
       query += ' GROUP BY rr.id ORDER BY rr.year DESC, rr.month DESC, rr.parish_id';
 
       const { rows } = await pool.query(query, params);
-      return rows.map(mapRemittanceRecord);
+      const records = rows.map(mapRemittanceRecord);
+      if (records.length === 0) return records;
+
+      // Batch-fetch parishes and line items in 2 queries instead of
+      // letting the per-record field resolvers above fire N+1 queries.
+      const parishIds = [...new Set(records.map(r => r._parishId))];
+      const recordIds = records.map(r => r.id);
+
+      const [{ rows: parishRows }, { rows: lineItemRows }] = await Promise.all([
+        pool.query('SELECT * FROM parishes WHERE id = ANY($1)', [parishIds]),
+        pool.query(
+          `SELECT rli.*, rli.remittance_record_id, c.name as collection_name,
+                  c.description as collection_description,
+                  c.is_active as collection_is_active, c.created_at as collection_created_at
+           FROM remittance_line_items rli
+           JOIN collections c ON rli.collection_id = c.id
+           WHERE rli.remittance_record_id = ANY($1)`,
+          [recordIds]
+        ),
+      ]);
+
+      const parishById = {};
+      for (const row of parishRows) parishById[row.id] = mapParish(row);
+
+      const lineItemsByRecordId = {};
+      for (const row of lineItemRows) {
+        if (!lineItemsByRecordId[row.remittance_record_id]) lineItemsByRecordId[row.remittance_record_id] = [];
+        lineItemsByRecordId[row.remittance_record_id].push({
+          id: row.id,
+          remittanceSourceId: row.collection_id,
+          amount: parseFloat(row.amount),
+          source: {
+            id: row.collection_id,
+            name: row.collection_name,
+            description: row.collection_description,
+            isActive: row.collection_is_active,
+            createdAt: row.collection_created_at?.toISOString(),
+          },
+        });
+      }
+
+      for (const r of records) {
+        r._parishObj = parishById[r._parishId] || null;
+        r._lineItems = lineItemsByRecordId[r.id] || [];
+      }
+
+      return records;
     },
 
     remittanceRecord: async (_, { id }, { user }) => {
