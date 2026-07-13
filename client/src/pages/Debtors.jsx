@@ -9,7 +9,7 @@ const YEAR = new Date().getFullYear();
 export function Debtors() {
   const { user } = useAuth();
   const [confirming, setConfirming] = useState(false);
-  const { data, loading, refetch } = useQuery(GET_DEBTORS, { variables: { year: YEAR, overdueOnly: true } });
+  const { data, loading, error, refetch } = useQuery(GET_DEBTORS, { variables: { year: YEAR, overdueOnly: true }, errorPolicy: 'all' });
   const [regenerateDebtors, { loading: regenerating, data: regenData, error: regenError }] = useMutation(REGENERATE_DEBTORS);
 
   if (loading) return <div style={{ padding: '60px', textAlign: 'center', fontSize: '13px', color: '#A7A68B' }}>Loading debtors...</div>;
@@ -72,6 +72,23 @@ export function Debtors() {
           </button>
         )}
       </div>
+
+      {/* Error banner */}
+      {error && (
+        <div style={{
+          backgroundColor: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: '10px',
+          padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px'
+        }}>
+          <div>
+            <p style={{ fontSize: '13px', fontWeight: 700, color: '#B91C1C' }}>Couldn't load debtors</p>
+            <p style={{ fontSize: '12px', color: '#991B1B', marginTop: '2px' }}>{error.message}</p>
+          </div>
+          <button onClick={() => refetch()} style={{
+            padding: '8px 14px', borderRadius: '8px', border: '1px solid #FCA5A5',
+            backgroundColor: 'white', color: '#B91C1C', fontSize: '12px', fontWeight: 700, cursor: 'pointer'
+          }}>Retry</button>
+        </div>
+      )}
 
       {/* Admin: regenerate debtors for all years */}
       {user?.role === 'ADMIN' && (
