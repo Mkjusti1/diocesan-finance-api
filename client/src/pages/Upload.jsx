@@ -1,3 +1,4 @@
+
 import { useState, useRef } from 'react';
 import { Upload, FileSpreadsheet, CheckCircle, AlertCircle, Plus, SkipForward, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
@@ -467,43 +468,3 @@ export function UploadPage() {
           </div>
         </div>
       )}
-
-      {/* Format guide */}
-      <div style={{ backgroundColor: 'white', borderRadius: '12px', border: '1px solid #F5E3D7', overflow: 'hidden' }}>
-        <div style={{ padding: '14px 20px', borderBottom: '1px solid #F5E3D7', backgroundColor: '#FFF9F2' }}>
-          <p style={{ fontSize: '12px', fontWeight: 700, color: '#8B4C39', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-            Expected file format
-          </p>
-        </div>
-        <div style={{ padding: '20px' }}>
-          <p style={{ fontSize: '12px', color: '#A7A68B', marginBottom: '12px', lineHeight: 1.6 }}>
-            One sheet per month, named <strong style={{ color: '#8B4C39' }}>JANUARY</strong>, <strong style={{ color: '#8B4C39' }}>FEBRUARY</strong>, etc. First column must be <strong style={{ color: '#8B4C39' }}>Parish Name</strong>. Remaining columns are collection types.
-          </p>
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-              <thead>
-                <tr style={{ backgroundColor: '#FFF9F2' }}>
-                  {['Parish Name', 'First Collection', 'Second Collection', 'Tithe', 'Harvest', '...'].map(h => (
-                    <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 700, color: '#8B4C39', border: '1px solid #F5E3D7', whiteSpace: 'nowrap' }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {[
-                  ["St. Peter's Parish", "120,000", "80,000", "150,000", "0", "..."],
-                  ["St. Paul's Parish", "95,000", "60,000", "120,000", "50,000", "..."],
-                ].map((row, i) => (
-                  <tr key={i}>
-                    {row.map((cell, j) => (
-                      <td key={j} style={{ padding: '8px 12px', border: '1px solid #F5E3D7', color: j === 0 ? '#1a0a06' : '#A7A68B', fontWeight: j === 0 ? 600 : 400 }}>{cell}</td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
