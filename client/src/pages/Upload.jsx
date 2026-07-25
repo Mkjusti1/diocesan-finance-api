@@ -1,4 +1,3 @@
-
 import { useState, useRef } from 'react';
 import { Upload, FileSpreadsheet, CheckCircle, AlertCircle, Plus, SkipForward, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
@@ -250,8 +249,9 @@ export function UploadPage() {
                     backgroundColor: format === f ? 'white' : 'transparent',
                     color: format === f ? '#8B4C39' : '#A7A68B',
                     boxShadow: format === f ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                    transition: 'all 0.15s', whiteSpace: 'nowrap'
-                  }}>
+                    transition: 'all 0.2s'
+                  }}
+                >
                   {label}
                 </button>
               ))}
@@ -262,145 +262,99 @@ export function UploadPage() {
             onClick={format === 'national' ? runNationalUpload : runHorizontalUpload}
             disabled={!file || !year || step === 'previewing' || step === 'uploading' || (format === 'horizontal' && !collectionName)}
             style={{
-              height: '40px', padding: '0 24px', borderRadius: '8px', border: 'none',
-              cursor: !file || !year ? 'not-allowed' : 'pointer',
-              backgroundColor: !file || !year ? '#F5E3D7' : '#D3542A',
-              color: !file || !year ? '#A7A68B' : 'white',
-              fontSize: '13px', fontWeight: 600, alignSelf: 'flex-start'
+              height: '44px', borderRadius: '8px', border: 'none',
+              backgroundColor: (!file || !year || (format === 'horizontal' && !collectionName)) ? '#F5E3D7' : '#8B4C39',
+              color: 'white', fontSize: '14px', fontWeight: 600, cursor: (!file || !year || (format === 'horizontal' && !collectionName)) ? 'not-allowed' : 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+              transition: 'all 0.2s'
             }}
           >
-            {step === 'previewing' || step === 'uploading' ? 'Processing...' : 'Upload Now'}
+            {step === 'uploading' ? (
+              <><span style={{ width: '16px', height: '16px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.8s linear infinite', display: 'inline-block' }} /> Uploading...</>
+            ) : (
+              <><Upload size={18} strokeWidth={2} /> Upload</>
+            )}
           </button>
         </div>
       </div>
 
-      {/* Step 2 — Preview */}
+      {/* Preview */}
       {preview && (
         <div style={{ backgroundColor: 'white', borderRadius: '12px', border: '1px solid #F5E3D7', overflow: 'hidden' }}>
-          <div style={{ padding: '16px 20px', borderBottom: '1px solid #F5E3D7', backgroundColor: '#FFF9F2' }}>
+          <div style={{ padding: '16px 20px', borderBottom: '1px solid #F5E3D7', backgroundColor: '#FFF9F2', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <p style={{ fontSize: '12px', fontWeight: 700, color: '#8B4C39', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-              Step 2 — Review before uploading
+              Preview — {preview.length} records
             </p>
+            <button onClick={() => { setPreview(null); setStep('idle'); }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}>
+              <X size={16} color="#A7A68B" />
+            </button>
           </div>
           <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-
             {/* Summary row */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
               {[
-                { label: 'To Insert', value: preview.toInsert.length, color: '#166534', bg: '#dcfce7' },
-                { label: 'To Skip', value: preview.toSkip.length, color: '#92400e', bg: '#fef3c7' },
-                { label: 'New Parishes', value: preview.newParishes.length, color: '#1e40af', bg: '#dbeafe' },
-                { label: 'New Collections', value: preview.newCollections.length, color: '#6b21a8', bg: '#f3e8ff' },
-              ].map(({ label, value, color, bg }) => (
-                <div key={label} style={{ borderRadius: '8px', padding: '14px 16px', backgroundColor: bg, textAlign: 'center' }}>
-                  <p style={{ fontSize: '24px', fontWeight: 700, color, lineHeight: 1 }}>{value}</p>
-                  <p style={{ fontSize: '11px', fontWeight: 600, color, marginTop: '4px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</p>
+                ['Total Records', preview.length],
+                ['Parishes', new Set(preview.map(r => r.parishName)).size],
+                ['Total Amount', '₦' + preview.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0).toLocaleString()],
+                ['Months', new Set(preview.map(r => r.month)).size],
+              ].map(([label, value]) => (
+                <div key={label} style={{ backgroundColor: '#FFF9F2', borderRadius: '8px', padding: '12px', textAlign: 'center' }}>
+                  <p style={{ fontSize: '11px', color: '#A7A68B', marginBottom: '4px' }}>{label}</p>
+                  <p style={{ fontSize: '18px', fontWeight: 700, color: '#8B4C39' }}>{value}</p>
                 </div>
               ))}
             </div>
 
-            {/* New parishes */}
-            {preview.newParishes.length > 0 && (
-              <div style={{ borderRadius: '8px', border: '1px solid #dbeafe', backgroundColor: '#eff6ff', padding: '14px 16px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                  <Plus size={14} color="#1e40af" strokeWidth={2.5} />
-                  <p style={{ fontSize: '12px', fontWeight: 700, color: '#1e40af' }}>
-                    {preview.newParishes.length} new parish{preview.newParishes.length !== 1 ? 'es' : ''} will be created
-                  </p>
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                  {preview.newParishes.map(p => (
-                    <span key={p} style={{ fontSize: '12px', padding: '3px 10px', borderRadius: '20px', backgroundColor: '#dbeafe', color: '#1e40af', fontWeight: 500 }}>
-                      {p}
-                    </span>
+            {/* Table */}
+            <div style={{ overflowX: 'auto', borderRadius: '8px', border: '1px solid #F5E3D7' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                <thead>
+                  <tr style={{ backgroundColor: '#FFF9F2' }}>
+                    {['Parish', 'Month', 'Collection', 'Amount', 'Year'].map(h => (
+                      <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 700, color: '#8B4C39', borderBottom: '1px solid #F5E3D7', whiteSpace: 'nowrap' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {preview.slice(0, 10).map((row, i) => (
+                    <tr key={i} style={{ borderBottom: '1px solid #F5E3D7' }}>
+                      <td style={{ padding: '10px 12px', fontWeight: 600, color: '#1a0a06', whiteSpace: 'nowrap' }}>{row.parishName}</td>
+                      <td style={{ padding: '10px 12px', color: '#A7A68B' }}>{row.month}</td>
+                      <td style={{ padding: '10px 12px', color: '#A7A68B' }}>{row.collectionType}</td>
+                      <td style={{ padding: '10px 12px', fontWeight: 600, color: '#8B4C39', whiteSpace: 'nowrap' }}>₦{parseFloat(row.amount).toLocaleString()}</td>
+                      <td style={{ padding: '10px 12px', color: '#A7A68B' }}>{row.year}</td>
+                    </tr>
                   ))}
-                </div>
-              </div>
-            )}
+                </tbody>
+              </table>
+              {preview.length > 10 && (
+                <p style={{ padding: '10px 12px', fontSize: '11px', color: '#A7A68B', textAlign: 'center', borderTop: '1px solid #F5E3D7' }}>
+                  ... and {preview.length - 10} more rows
+                </p>
+              )}
+            </div>
 
-            {/* New collections */}
-            {preview.newCollections.length > 0 && (
-              <div style={{ borderRadius: '8px', border: '1px solid #f3e8ff', backgroundColor: '#faf5ff', padding: '14px 16px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                  <Plus size={14} color="#6b21a8" strokeWidth={2.5} />
-                  <p style={{ fontSize: '12px', fontWeight: 700, color: '#6b21a8' }}>
-                    {preview.newCollections.length} new collection{preview.newCollections.length !== 1 ? 's' : ''} will be created
-                  </p>
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                  {preview.newCollections.map(c => (
-                    <span key={c} style={{ fontSize: '12px', padding: '3px 10px', borderRadius: '20px', backgroundColor: '#f3e8ff', color: '#6b21a8', fontWeight: 500 }}>
-                      {c}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Records to insert */}
-            {preview.toInsert.length > 0 && (
-              <div style={{ borderRadius: '8px', border: '1px solid #F5E3D7', overflow: 'hidden' }}>
-                <div style={{ padding: '10px 14px', backgroundColor: '#FFF9F2', borderBottom: '1px solid #F5E3D7' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <CheckCircle size={14} color="#166534" strokeWidth={2.5} />
-                    <p style={{ fontSize: '12px', fontWeight: 700, color: '#166534' }}>Records to be inserted</p>
-                  </div>
-                </div>
-                <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                  {preview.toInsert.map((r, i) => (
-                    <div key={i} style={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      padding: '8px 14px', borderBottom: i < preview.toInsert.length - 1 ? '1px solid #F5E3D7' : 'none',
-                      fontSize: '12px'
-                    }}>
-                      <span style={{ fontWeight: 500, color: '#1a0a06' }}>{r.parishName}</span>
-                      <span style={{ color: '#A7A68B' }}>{months[r.month - 1]} {r.year}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Records to skip */}
-            {preview.toSkip.length > 0 && (
-              <div style={{ borderRadius: '8px', border: '1px solid #fef3c7', overflow: 'hidden' }}>
-                <div style={{ padding: '10px 14px', backgroundColor: '#fffbeb', borderBottom: '1px solid #fef3c7' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <SkipForward size={14} color="#92400e" strokeWidth={2.5} />
-                    <p style={{ fontSize: '12px', fontWeight: 700, color: '#92400e' }}>Records that will be skipped (already exist)</p>
-                  </div>
-                </div>
-                <div style={{ maxHeight: '160px', overflowY: 'auto' }}>
-                  {preview.toSkip.map((r, i) => (
-                    <div key={i} style={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      padding: '8px 14px', borderBottom: i < preview.toSkip.length - 1 ? '1px solid #fef3c7' : 'none',
-                      fontSize: '12px'
-                    }}>
-                      <span style={{ fontWeight: 500, color: '#1a0a06' }}>{r.parishName}</span>
-                      <span style={{ color: '#92400e' }}>{months[r.month - 1]} {r.year} — {r.reason}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Actions */}
-            <div style={{ display: 'flex', gap: '10px', paddingTop: '4px' }}>
-              <button onClick={runUpload} disabled={step === 'uploading' || preview.toInsert.length === 0}
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                onClick={runUpload}
+                disabled={step === 'uploading'}
                 style={{
-                  flex: 1, height: '42px', borderRadius: '8px', border: 'none',
-                  backgroundColor: preview.toInsert.length === 0 ? '#F5E3D7' : '#D3542A',
-                  color: preview.toInsert.length === 0 ? '#A7A68B' : 'white',
-                  fontSize: '13px', fontWeight: 700, cursor: preview.toInsert.length === 0 ? 'not-allowed' : 'pointer'
-                }}>
-                {step === 'uploading' ? 'Uploading...' : `Confirm & Upload ${preview.toInsert.length} Records`}
+                  flex: 1, height: '44px', borderRadius: '8px', border: 'none',
+                  backgroundColor: '#8B4C39', color: 'white',
+                  fontSize: '14px', fontWeight: 600, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
+                }}
+              >
+                {step === 'uploading' ? 'Uploading...' : <><CheckCircle size={18} /> Confirm & Upload</>}
               </button>
-              <button onClick={reset} style={{
-                height: '42px', padding: '0 20px', borderRadius: '8px',
-                border: '1px solid #F5E3D7', backgroundColor: 'white',
-                color: '#8B4C39', fontSize: '13px', fontWeight: 600, cursor: 'pointer'
-              }}>
+              <button
+                onClick={() => { setPreview(null); setStep('idle'); }}
+                style={{
+                  height: '44px', borderRadius: '8px', border: '1px solid #F5E3D7',
+                  backgroundColor: 'white', color: '#8B4C39',
+                  fontSize: '14px', fontWeight: 600, cursor: 'pointer', padding: '0 20px'
+                }}
+              >
                 Cancel
               </button>
             </div>
@@ -408,46 +362,25 @@ export function UploadPage() {
         </div>
       )}
 
-      {/* Step 3 — Result */}
-      {result && (
+      {/* Result */}
+      {step === 'done' && result && (
         <div style={{ backgroundColor: 'white', borderRadius: '12px', border: '1px solid #F5E3D7', overflow: 'hidden' }}>
-          <div style={{ padding: '16px 20px', borderBottom: '1px solid #F5E3D7', backgroundColor: '#FFF9F2' }}>
-            <p style={{ fontSize: '12px', fontWeight: 700, color: '#8B4C39', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-              Step 3 — Upload complete
+          <div style={{ padding: '24px', textAlign: 'center' }}>
+            <div style={{ width: '56px', height: '56px', borderRadius: '50%', backgroundColor: '#ecfdf5', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+              <CheckCircle size={28} color="#059669" strokeWidth={2} />
+            </div>
+            <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#1a0a06', marginBottom: '4px' }}>Upload Complete</h3>
+            <p style={{ fontSize: '13px', color: '#A7A68B', marginBottom: '20px' }}>
+              {result.inserted || result.count || 0} records imported successfully
             </p>
-          </div>
-          <div style={{ padding: '24px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
-              <div style={{ width: '44px', height: '44px', borderRadius: '50%', backgroundColor: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <CheckCircle size={22} color="#166534" strokeWidth={2} />
-              </div>
-              <div>
-                <p style={{ fontSize: '15px', fontWeight: 700, color: '#1a0a06' }}>Upload successful</p>
-                <p style={{ fontSize: '13px', color: '#A7A68B', marginTop: '2px' }}>
-                  {result.summary.inserted} records inserted · {result.summary.skipped} skipped · debtors auto-generated
-                </p>
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', marginBottom: '20px' }}>
-              {[
-                ['Records Inserted', result.summary.inserted, '#166534', '#dcfce7'],
-                ['Records Skipped', result.summary.skipped, '#92400e', '#fef3c7'],
-                ['New Parishes Created', result.summary.newParishes.length, '#1e40af', '#dbeafe'],
-                ['New Collections Created', result.summary.newCollections.length, '#6b21a8', '#f3e8ff'],
-              ].map(([label, value, color, bg]) => (
-                <div key={label} style={{ borderRadius: '8px', padding: '12px 16px', backgroundColor: bg, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: '12px', color, fontWeight: 600 }}>{label}</span>
-                  <span style={{ fontSize: '18px', fontWeight: 700, color }}>{value}</span>
-                </div>
-              ))}
-            </div>
-
-            <button onClick={reset} style={{
-              width: '100%', height: '42px', borderRadius: '8px',
-              backgroundColor: '#D3542A', color: 'white',
-              border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 700
-            }}>
+            <button
+              onClick={reset}
+              style={{
+                height: '40px', borderRadius: '8px', border: '1px solid #F5E3D7',
+                backgroundColor: 'white', color: '#8B4C39',
+                fontSize: '13px', fontWeight: 600, cursor: 'pointer', padding: '0 20px'
+              }}
+            >
               Upload Another File
             </button>
           </div>
@@ -457,9 +390,8 @@ export function UploadPage() {
       {/* Error */}
       {step === 'error' && error && (
         <div style={{
-          borderRadius: '10px', padding: '16px 20px',
-          backgroundColor: '#fef2f2', border: '1px solid #fecaca',
-          display: 'flex', alignItems: 'flex-start', gap: '10px'
+          backgroundColor: '#fef2f2', borderRadius: '12px', border: '1px solid #fecaca',
+          padding: '16px 20px', display: 'flex', alignItems: 'flex-start', gap: '10px'
         }}>
           <AlertCircle size={18} color="#dc2626" strokeWidth={2} style={{ flexShrink: 0, marginTop: '1px' }} />
           <div>
@@ -468,3 +400,7 @@ export function UploadPage() {
           </div>
         </div>
       )}
+
+    </div>
+  );
+}
