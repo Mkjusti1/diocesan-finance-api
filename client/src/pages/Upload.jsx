@@ -1,12 +1,11 @@
 import { useState, useRef } from 'react';
-import { Upload, FileSpreadsheet, CheckCircle, AlertCircle, Plus, SkipForward, X } from 'lucide-react';
+import { Upload, FileSpreadsheet, CheckCircle, AlertCircle, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
 const YEAR = new Date().getFullYear();
-
 const API_URL = import.meta.env.VITE_API_URL || '';
 
-const HORIZONTAL_FORMATS = ['horizontal', 'harvest-bazaar', 'cathedraticum', 'project-sunday'];
+const HORIZONTAL_FORMATS = ['horizontal', 'harvest-bazaar', 'cathedraticum', 'project-sunday', 'seminary-collections'];
 
 export function UploadPage() {
   const { user } = useAuth();
@@ -15,27 +14,27 @@ export function UploadPage() {
   const [year, setYear] = useState(YEAR);
   const [format, setFormat] = useState('horizontal');
   const [collectionName, setCollectionName] = useState('');
-  const [step, setStep] = useState('idle'); // idle | previewing | preview_done | uploading | done | error
+  const [step, setStep] = useState('idle');
   const [preview, setPreview] = useState(null);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
 
   const getToken = () => window.__authToken__;
 
-  /* ── Change A: helper that resolves collection name from format ── */
   const getCollectionName = () => {
     if (format === 'harvest-bazaar') return 'Harvest & Bazaar';
     if (format === 'cathedraticum') return 'Cathedraticum';
     if (format === 'project-sunday') return 'Project Sunday';
+    if (format === 'seminary-collections') return 'Seminary Collections';
     return collectionName;
   };
 
-  /* ── Change B: switch format + auto-lock collection name ── */
   const handleFormatChange = (f) => {
     setFormat(f);
     if (f === 'harvest-bazaar') setCollectionName('Harvest & Bazaar');
     else if (f === 'cathedraticum') setCollectionName('Cathedraticum');
     else if (f === 'project-sunday') setCollectionName('Project Sunday');
+    else if (f === 'seminary-collections') setCollectionName('Seminary Collections');
     else if (f !== 'horizontal') setCollectionName('');
   };
 
@@ -157,7 +156,6 @@ export function UploadPage() {
     }
   };
 
-  /* ── Change E: route upload to the correct endpoint ── */
   const handleUpload = () => {
     if (format === 'national') runNationalUpload();
     else if (HORIZONTAL_FORMATS.includes(format)) runHorizontalUpload();
@@ -175,8 +173,6 @@ export function UploadPage() {
     setError('');
     if (fileRef.current) fileRef.current.value = '';
   };
-
-  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '720px' }}>
@@ -245,7 +241,6 @@ export function UploadPage() {
               />
             </div>
 
-            {/* ── Change D: show for all horizontal-like formats, lock value for specific ones ── */}
             {HORIZONTAL_FORMATS.includes(format) && (
               <div>
                 <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#8B4C39', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>
@@ -268,7 +263,7 @@ export function UploadPage() {
             )}
           </div>
 
-          {/* ── Change C: expand format selector ── */}
+          {/* Format selector */}
           <div>
             <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#8B4C39', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>
               Upload Type
@@ -279,6 +274,7 @@ export function UploadPage() {
                 ['harvest-bazaar', 'Harvest & Bazaar (months as columns)'],
                 ['cathedraticum', 'Cathedraticum (months as columns)'],
                 ['project-sunday', 'Project Sunday (months as columns)'],
+                ['seminary-collections', 'Seminary Collections (months as columns)'],
                 ['national', 'National Collections (collections as columns)'],
               ].map(([f, label]) => (
                 <button key={f} type="button" onClick={() => handleFormatChange(f)}
@@ -297,7 +293,6 @@ export function UploadPage() {
             </div>
           </div>
 
-          {/* ── Change E: upload button routes to correct endpoint ── */}
           <button
             onClick={handleUpload}
             disabled={!file || !year || step === 'previewing' || step === 'uploading' || (HORIZONTAL_FORMATS.includes(format) && !getCollectionName())}
@@ -330,7 +325,6 @@ export function UploadPage() {
             </button>
           </div>
           <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {/* Summary row */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
               {[
                 ['Total Records', preview.length],
@@ -345,7 +339,6 @@ export function UploadPage() {
               ))}
             </div>
 
-            {/* Table */}
             <div style={{ overflowX: 'auto', borderRadius: '8px', border: '1px solid #F5E3D7' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
                 <thead>

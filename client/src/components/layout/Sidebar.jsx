@@ -47,7 +47,6 @@ export function Sidebar() {
             <p style={{ color: 'white', fontWeight: 900, fontSize: '13px', lineHeight: 1.1, letterSpacing: '0.02em' }}>
               CADIAG FINANCE
             </p>
-            
           </div>
         </div>
       </div>
