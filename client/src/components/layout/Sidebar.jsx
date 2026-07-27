@@ -2,7 +2,8 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, ReceiptText, ShieldAlert,
   Users, LogOut, UploadCloud, KeyRound,
-  BookOpen, GraduationCap
+  BookOpen, GraduationCap,
+  Wheat, Landmark, HeartHandshake
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import dioceseLogo from '@/assets/diocese-logo.jpg';
@@ -11,6 +12,9 @@ const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard', roles: ['ADMIN','BISHOP'] },
   { to: '/rectory', icon: ReceiptText, label: 'Rectory', roles: ['ADMIN','BISHOP','PRIEST'] },
   { to: '/national-collections', icon: BookOpen, label: 'National Collections', roles: ['ADMIN','BISHOP'] },
+  { to: '/harvest-bazaar', icon: Wheat, label: 'Harvest & Bazaar', roles: ['ADMIN','BISHOP'] },
+  { to: '/cathedraticum', icon: Landmark, label: 'Cathedraticum', roles: ['ADMIN','BISHOP'] },
+  { to: '/project-sunday', icon: HeartHandshake, label: 'Project Sunday', roles: ['ADMIN','BISHOP'] },
   { to: '/seminary-collections', icon: GraduationCap, label: 'Seminary Collections', roles: ['ADMIN','BISHOP'] },
   { to: '/debtors', icon: ShieldAlert, label: 'Debtors', roles: ['ADMIN','BISHOP'] },
   { to: '/upload', icon: UploadCloud, label: 'Upload', roles: ['ADMIN'] },

@@ -6,6 +6,8 @@ const YEAR = new Date().getFullYear();
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
+const HORIZONTAL_FORMATS = ['horizontal', 'harvest-bazaar', 'cathedraticum', 'project-sunday'];
+
 export function UploadPage() {
   const { user } = useAuth();
   const fileRef = useRef(null);
@@ -19,6 +21,23 @@ export function UploadPage() {
   const [error, setError] = useState('');
 
   const getToken = () => window.__authToken__;
+
+  /* ── Change A: helper that resolves collection name from format ── */
+  const getCollectionName = () => {
+    if (format === 'harvest-bazaar') return 'Harvest & Bazaar';
+    if (format === 'cathedraticum') return 'Cathedraticum';
+    if (format === 'project-sunday') return 'Project Sunday';
+    return collectionName;
+  };
+
+  /* ── Change B: switch format + auto-lock collection name ── */
+  const handleFormatChange = (f) => {
+    setFormat(f);
+    if (f === 'harvest-bazaar') setCollectionName('Harvest & Bazaar');
+    else if (f === 'cathedraticum') setCollectionName('Cathedraticum');
+    else if (f === 'project-sunday') setCollectionName('Project Sunday');
+    else if (f !== 'horizontal') setCollectionName('');
+  };
 
   const handleFile = (e) => {
     const f = e.target.files[0];
@@ -111,14 +130,14 @@ export function UploadPage() {
   };
 
   const runHorizontalUpload = async () => {
-    if (!file || !year || !collectionName) return;
+    if (!file || !year || !getCollectionName()) return;
     setStep('uploading');
     setError('');
 
     const formData = new FormData();
     formData.append('file', file);
     formData.append('year', year);
-    formData.append('collectionName', collectionName);
+    formData.append('collectionName', getCollectionName());
 
     try {
       const res = await fetch(`${API_URL}/api/upload/horizontal`, {
@@ -136,6 +155,13 @@ export function UploadPage() {
       setError(err.message);
       setStep('error');
     }
+  };
+
+  /* ── Change E: route upload to the correct endpoint ── */
+  const handleUpload = () => {
+    if (format === 'national') runNationalUpload();
+    else if (HORIZONTAL_FORMATS.includes(format)) runHorizontalUpload();
+    else runUpload();
   };
 
   const reset = () => {
@@ -208,7 +234,7 @@ export function UploadPage() {
           </div>
 
           {/* Year + collection name */}
-          <div style={{ display: 'grid', gridTemplateColumns: format === 'horizontal' ? '1fr 1fr' : '1fr', gap: '12px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: HORIZONTAL_FORMATS.includes(format) ? '1fr 1fr' : '1fr', gap: '12px' }}>
             <div>
               <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#8B4C39', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>
                 Financial Year *
@@ -218,31 +244,44 @@ export function UploadPage() {
                 style={{ width: '100%', height: '40px', borderRadius: '8px', border: '1px solid #F5E3D7', padding: '0 12px', fontSize: '14px', outline: 'none', color: '#1a0a06', boxSizing: 'border-box' }}
               />
             </div>
-            {format === 'horizontal' && (
-              <div style={{ display: format === 'horizontal' ? 'block' : 'none' }}>
+
+            {/* ── Change D: show for all horizontal-like formats, lock value for specific ones ── */}
+            {HORIZONTAL_FORMATS.includes(format) && (
+              <div>
                 <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#8B4C39', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>
                   Collection Name *
                 </label>
                 <input
-                  type="text" placeholder="e.g. First Collection" value={collectionName}
-                  onChange={e => setCollectionName(e.target.value)}
-                  style={{ width: '100%', height: '40px', borderRadius: '8px', border: '1px solid #F5E3D7', padding: '0 12px', fontSize: '14px', outline: 'none', color: '#1a0a06', boxSizing: 'border-box' }}
+                  type="text"
+                  placeholder={format === 'horizontal' ? "e.g. First Collection" : ""}
+                  value={getCollectionName()}
+                  onChange={format === 'horizontal' ? e => setCollectionName(e.target.value) : undefined}
+                  readOnly={format !== 'horizontal'}
+                  style={{
+                    width: '100%', height: '40px', borderRadius: '8px', border: '1px solid #F5E3D7',
+                    padding: '0 12px', fontSize: '14px', outline: 'none', color: '#1a0a06',
+                    boxSizing: 'border-box',
+                    backgroundColor: format !== 'horizontal' ? '#FFF9F2' : 'white'
+                  }}
                 />
               </div>
             )}
           </div>
 
-          {/* Format selector */}
+          {/* ── Change C: expand format selector ── */}
           <div>
             <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#8B4C39', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>
               Upload Type
             </label>
-            <div style={{ display: 'flex', backgroundColor: '#F5E3D7', borderRadius: '8px', padding: '3px', width: 'fit-content' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', backgroundColor: '#F5E3D7', borderRadius: '8px', padding: '3px', width: 'fit-content', gap: '2px' }}>
               {[
                 ['horizontal', 'Rectory (months as columns)'],
+                ['harvest-bazaar', 'Harvest & Bazaar (months as columns)'],
+                ['cathedraticum', 'Cathedraticum (months as columns)'],
+                ['project-sunday', 'Project Sunday (months as columns)'],
                 ['national', 'National Collections (collections as columns)'],
               ].map(([f, label]) => (
-                <button key={f} type="button" onClick={() => { setFormat(f); setCollectionName(''); }}
+                <button key={f} type="button" onClick={() => handleFormatChange(f)}
                   style={{
                     padding: '6px 14px', borderRadius: '6px', border: 'none',
                     fontSize: '12px', fontWeight: 600, cursor: 'pointer',
@@ -258,13 +297,14 @@ export function UploadPage() {
             </div>
           </div>
 
+          {/* ── Change E: upload button routes to correct endpoint ── */}
           <button
-            onClick={format === 'national' ? runNationalUpload : runHorizontalUpload}
-            disabled={!file || !year || step === 'previewing' || step === 'uploading' || (format === 'horizontal' && !collectionName)}
+            onClick={handleUpload}
+            disabled={!file || !year || step === 'previewing' || step === 'uploading' || (HORIZONTAL_FORMATS.includes(format) && !getCollectionName())}
             style={{
               height: '44px', borderRadius: '8px', border: 'none',
-              backgroundColor: (!file || !year || (format === 'horizontal' && !collectionName)) ? '#F5E3D7' : '#8B4C39',
-              color: 'white', fontSize: '14px', fontWeight: 600, cursor: (!file || !year || (format === 'horizontal' && !collectionName)) ? 'not-allowed' : 'pointer',
+              backgroundColor: (!file || !year || (HORIZONTAL_FORMATS.includes(format) && !getCollectionName())) ? '#F5E3D7' : '#8B4C39',
+              color: 'white', fontSize: '14px', fontWeight: 600, cursor: (!file || !year || (HORIZONTAL_FORMATS.includes(format) && !getCollectionName())) ? 'not-allowed' : 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
               transition: 'all 0.2s'
             }}
@@ -336,7 +376,7 @@ export function UploadPage() {
 
             <div style={{ display: 'flex', gap: '10px' }}>
               <button
-                onClick={runUpload}
+                onClick={handleUpload}
                 disabled={step === 'uploading'}
                 style={{
                   flex: 1, height: '44px', borderRadius: '8px', border: 'none',

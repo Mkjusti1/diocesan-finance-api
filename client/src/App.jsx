@@ -26,19 +26,18 @@ export default function App() {
               <Route path="/" element={<Dashboard />} />
               <Route path="/parishes" element={<Parishes />} />
               <Route path="/parishes/:id" element={<ParishDetail />} />
-              <Route path="/remittances" element={<Remittances />} />
-
-              {/* Collection pages */}
-              <Route path="/rectory" element={<CollectionPage title="Rectory" collectionName="Rectory" type="monthly" />} />
+              <Route path="/rectory" element={<CollectionPage collectionName="Rectory" title="Rectory" />} />
               <Route path="/national-collections" element={<NationalCollectionsPage />} />
-              <Route path="/seminary-collections" element={<CollectionPage title="Seminary Collections" collectionName="Bigard Memorial Seminary" type="annual" />} />
-
+              <Route path="/harvest-bazaar" element={<CollectionPage collectionName="Harvest & Bazaar" title="Harvest & Bazaar" />} />
+              <Route path="/cathedraticum" element={<CollectionPage collectionName="Cathedraticum" title="Cathedraticum" />} />
+              <Route path="/project-sunday" element={<CollectionPage collectionName="Project Sunday" title="Project Sunday" />} />
+              <Route path="/seminary-collections" element={<CollectionPage collectionName="Seminary Collections" title="Seminary Collections" />} />
               <Route path="/debtors" element={<Debtors />} />
               <Route path="/upload" element={<UploadPage />} />
               <Route path="/users" element={<Users />} />
               <Route path="/profile" element={<Profile />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
-            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>
       </AuthProvider>
