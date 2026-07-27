@@ -72,6 +72,7 @@ function formatSectionTitle(title, year) {
   return normalized.includes(String(year)) ? normalized : `${normalized} ${year}`;
 }
 
+
 // ─── Small pieces ─────────────────────────────────────────────────────────
 
 function CopyButton({ text, sectionKey, copiedKey, setCopiedKey }) {
