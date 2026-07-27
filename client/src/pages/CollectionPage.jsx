@@ -180,7 +180,7 @@ export function CollectionPage({ title, collectionName, type = 'monthly' }) {
                           {parish.name}
                         </td>
                         {yearSet.map(y => (
-                          <td key={y} style={{ padding: '11px 16px', textAlign: 'right', fontSize: '13px', color: yearData[y] ? '#1a0a06' : '#E5D5CD', whiteSpace: 'nowrap' }}>
+                          <td key={y} style={{ padding: '11px 16px', textAlign: 'right', fontSize: '13px', fontWeight: yearData[y] ? 700 : 400, color: yearData[y] ? '#8B4C39' : '#E5D5CD', whiteSpace: 'nowrap' }}>
                             {yearData[y] ? formatCurrency(yearData[y]) : '—'}
                           </td>
                         ))}
@@ -318,7 +318,7 @@ export function CollectionPage({ title, collectionName, type = 'monthly' }) {
                       {MONTHS.map((_, i) => {
                         const amount = monthData[i + 1];
                         return (
-                          <td key={i} style={{ padding: '11px 10px', textAlign: 'right', fontSize: '12px', color: amount ? '#1a0a06' : '#E5D5CD', whiteSpace: 'nowrap' }}>
+                          <td key={i} style={{ padding: '11px 10px', textAlign: 'right', fontSize: '12px', fontWeight: amount ? 700 : 400, color: amount ? '#8B4C39' : '#E5D5CD', whiteSpace: 'nowrap' }}>
                             {amount ? formatCurrency(amount) : '—'}
                           </td>
                         );

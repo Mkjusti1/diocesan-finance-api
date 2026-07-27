@@ -247,7 +247,7 @@ export function Dashboard() {
                     </td>
                     <td style={{ padding: '12px 20px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span style={{ fontSize: '13px', fontWeight: 600, color: '#1a0a06' }}>{s.monthsReported}</span>
+                        <span style={{ fontSize: '13px', fontWeight: 700, color: '#8B4C39' }}>{s.monthsReported}</span>
                         <span style={{ fontSize: '12px', color: '#A7A68B' }}>/ 12 months</span>
                       </div>
                     </td>

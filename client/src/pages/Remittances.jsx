@@ -189,7 +189,7 @@ export function Remittances() {
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                         {r.lineItems.map((item, i) => (
                           <span key={i} style={{
-                            fontSize: '11px', fontWeight: 600, padding: '3px 8px',
+                            fontSize: '11px', fontWeight: 700, padding: '3px 8px',
                             borderRadius: '20px', backgroundColor: '#F5E3D7', color: '#8B4C39',
                             whiteSpace: 'nowrap'
                           }}>

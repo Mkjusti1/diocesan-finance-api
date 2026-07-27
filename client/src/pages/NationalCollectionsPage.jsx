@@ -185,7 +185,7 @@ export function NationalCollectionsPage() {
                         {parish.name}
                       </td>
                       {nationalSources.map(s => (
-                        <td key={s.id} style={{ padding: '10px 12px', textAlign: 'right', fontSize: '12px', color: parishData[s.id] ? '#1a0a06' : '#E5D5CD', whiteSpace: 'nowrap' }}>
+                        <td key={s.id} style={{ padding: '10px 12px', textAlign: 'right', fontSize: '12px', fontWeight: parishData[s.id] ? 700 : 400, color: parishData[s.id] ? '#8B4C39' : '#E5D5CD', whiteSpace: 'nowrap' }}>
                           {parishData[s.id] ? formatCurrency(parishData[s.id]) : '—'}
                         </td>
                       ))}
