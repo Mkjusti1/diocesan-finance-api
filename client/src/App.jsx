@@ -32,7 +32,8 @@ export default function App() {
               <Route path="/cathedraticum" element={<CollectionPage collectionName="Cathedraticum" title="Cathedraticum" />} />
               <Route path="/project-sunday" element={<CollectionPage collectionName="Project Sunday" title="Project Sunday" />} />
               <Route path="/seminary-collections" element={<CollectionPage collectionName="Seminary Collections" title="Seminary Collections" />} />
-              <Route path="/record-payment" element={<RecordPayment />} />\n              <Route path="/debtors" element={<Debtors />} />
+              <Route path="/record-payment" element={<RecordPayment />} />
+              <Route path="/debtors" element={<Debtors />} />
               <Route path="/upload" element={<UploadPage />} />
               <Route path="/users" element={<Users />} />
               <Route path="/profile" element={<Profile />} />
