@@ -50,17 +50,22 @@ html, body {
   box-sizing: border-box;
 }
 
-/* Sticky first column (Parish) — scrolling columns disappear behind it */
-table thead tr th:first-child,
-table tbody tr td:first-child {
-  position: sticky;
-  left: 0;
-  background-color: white;
-  z-index: 10;
-  box-shadow: 2px 0 4px rgba(0,0,0,0.06);
+/* Sticky first column — scrolling columns disappear BEHIND it */
+table tr > *:first-child {
+  position: sticky !important;
+  left: 0 !important;
+  background-color: white !important;
+  z-index: 10 !important;
+  box-shadow: 2px 0 4px rgba(0,0,0,0.06) !important;
 }
 
-table thead tr th:first-child {
-  background-color: #FFF9F2;
-  z-index: 20;
+/* Header sticky cell */
+table thead tr > *:first-child {
+  background-color: #FFF9F2 !important;
+  z-index: 20 !important;
+}
+
+/* Sticky cell matches row hover color so it doesn't flash */
+table tbody tr:hover > *:first-child {
+  background-color: #FFF9F2 !important;
 }
