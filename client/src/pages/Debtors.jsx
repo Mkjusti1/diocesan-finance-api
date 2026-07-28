@@ -230,7 +230,7 @@ export function Debtors() {
         }}>
           <div>
             <p style={{ fontSize: '13px', fontWeight: 700, color: '#B91C1C' }}>Couldn't load debtors</p>
-            <p style={{ fontSize: '12px', color: '#991B1B', marginTop: '2px' }}>{error.message}</p>
+            <p style={{ fontSize: '12px', color: '#991B1B', marginTop: '2px' }}>{(error.message || '').split('timeout exceeded').length > 2 ? 'Server is warming up — please click Retry or Regenerate Debtors.' : (error.message || 'Failed to fetch')}</p>
           </div>
           <button onClick={() => refetch()} style={{
             padding: '8px 14px', borderRadius: '8px', border: '1px solid #FCA5A5',
