@@ -28,6 +28,7 @@ export default function App() {
               <Route path="/parishes" element={<Parishes />} />
               <Route path="/parishes/:id" element={<ParishDetail />} />
               <Route path="/rectory" element={<CollectionPage collectionName="Rectory" title="Rectory" />} />
+              <Route path="/national-collections" element={<NationalCollectionsPage />} />
               <Route path="/harvest-bazaar" element={<CollectionPage collectionName="Harvest & Bazaar" title="Harvest & Bazaar" />} />
               <Route path="/cathedraticum" element={<CollectionPage collectionName="Cathedraticum" title="Cathedraticum" />} />
               <Route path="/project-sunday" element={<CollectionPage collectionName="Project Sunday" title="Project Sunday" />} />

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery, useMutation } from "@apollo/client/react/hooks";
+import { useQuery, useMutation } from '@apollo/client/react/hooks';
 import { CreditCard, CheckCircle, ChevronDown } from 'lucide-react';
 import { GET_PARISHES, GET_REMITTANCE_SOURCES, RECORD_PAYMENT, GET_REMITTANCE_RECORDS, GET_DASHBOARD_STATS } from '@/graphql/queries';
 import { useAuth } from '@/context/AuthContext';

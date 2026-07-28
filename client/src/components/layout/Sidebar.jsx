@@ -17,8 +17,8 @@ const navItems = [
   { to: '/cathedraticum', icon: Landmark, label: 'Cathedraticum', roles: ['ADMIN','BISHOP'] },
   { to: '/project-sunday', icon: HeartHandshake, label: 'Project Sunday', roles: ['ADMIN','BISHOP'] },
   { to: '/seminary-collections', icon: GraduationCap, label: 'Seminary Collections', roles: ['ADMIN','BISHOP'] },
-  { to: '/record-payment', icon: CreditCard, label: 'Record Payment', roles: ['ADMIN'] },
   { to: '/debtors', icon: ShieldAlert, label: 'Debtors', roles: ['ADMIN','BISHOP'] },
+  { to: '/record-payment', icon: CreditCard, label: 'Record Payment', roles: ['ADMIN'] },
   { to: '/upload', icon: UploadCloud, label: 'Upload', roles: ['ADMIN'] },
   { to: '/users', icon: Users, label: 'Users', roles: ['ADMIN'] },
   { to: '/profile', icon: KeyRound, label: 'Profile', roles: ['ADMIN','BISHOP','PRIEST'] },
@@ -34,7 +34,6 @@ export function Sidebar() {
       width: '240px', minHeight: '100vh', backgroundColor: '#8B4C39',
       display: 'flex', flexDirection: 'column', flexShrink: 0
     }}>
-      {/* Logo */}
       <div style={{ padding: '20px 16px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <img
@@ -53,7 +52,6 @@ export function Sidebar() {
         </div>
       </div>
 
-      {/* Nav */}
       <nav style={{ flex: 1, padding: '12px', overflowY: 'auto' }}>
         {allowed.map(({ to, icon: Icon, label }) => (
           <NavLink
@@ -80,10 +78,8 @@ export function Sidebar() {
         ))}
       </nav>
 
-      {/* Divider */}
       <div style={{ margin: '0 16px', borderTop: '1px solid rgba(255,255,255,0.1)' }} />
 
-      {/* User */}
       <div style={{ padding: '12px' }}>
         <div
           onClick={() => navigate('/profile')}
