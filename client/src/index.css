@@ -52,16 +52,4 @@ html, body {
   box-sizing: border-box;
 }
 
-/* Freeze first column (Parish) on all data tables */
-table thead tr th:first-child,
-table tbody tr td:first-child {
-  position: sticky;
-  left: 0;
-  background-color: white;
-  z-index: 10;
-  box-shadow: 2px 0 4px rgba(0,0,0,0.04);
-}
-table thead tr th:first-child {
-  background-color: #FFF9F2;
-  z-index: 20;
 }
