@@ -165,11 +165,12 @@ export function Debtors() {
   const { user } = useAuth();
   const [confirming, setConfirming] = useState(false);
   const [copiedKey, setCopiedKey] = useState(null);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
   // No `year` variable => every year with outstanding debtors comes back,
   // and the page groups/updates itself automatically as new years appear.
   const { data, loading, error, refetch } = useQuery(GET_DEBTORS, {
-    variables: { year: null, overdueOnly: true },
+    variables: { year: selectedYear, overdueOnly: true },
     errorPolicy: 'all',
   });
   const [regenerateDebtors, { loading: regenerating, data: regenData, error: regenError }] = useMutation(REGENERATE_DEBTORS);
@@ -201,6 +202,24 @@ export function Debtors() {
             {totalOutstanding} outstanding record{totalOutstanding !== 1 ? 's' : ''} across {yearGroups.length} year{yearGroups.length !== 1 ? 's' : ''}
           </p>
         </div>
+      </div>
+
+      {/* Year selector */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <label style={{ fontSize: '13px', fontWeight: 600, color: '#8B4C39' }}>Year:</label>
+        <select
+          value={selectedYear}
+          onChange={e => setSelectedYear(parseInt(e.target.value))}
+          style={{
+            height: '36px', borderRadius: '8px', border: '1px solid #F5E3D7',
+            padding: '0 12px', fontSize: '13px', color: '#1a0a06', backgroundColor: 'white',
+            outline: 'none', cursor: 'pointer'
+          }}
+        >
+          {[2024, 2025, 2026, 2027, 2028].map(y => (
+            <option key={y} value={y}>{y}</option>
+          ))}
+        </select>
       </div>
 
       {/* Error banner */}
