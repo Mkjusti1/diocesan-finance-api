@@ -43,7 +43,7 @@ export const typeDefs = gql`
 
   type RemittanceRecord {
     id: ID!
-    parish: Parish!
+    parish: Parish
     year: Int!
     month: Int!
     monthName: String!
@@ -56,7 +56,7 @@ export const typeDefs = gql`
 
   type Debtor {
     id: ID!
-    parish: Parish!
+    parish: Parish
     collection: RemittanceSource
     year: Int!
     month: Int!
@@ -104,7 +104,7 @@ export const typeDefs = gql`
   }
 
   type ParishSummary {
-    parish: Parish!
+    parish: Parish
     totalCollected: Float!
     monthsReported: Int!
     lastReported: String
