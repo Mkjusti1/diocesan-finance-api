@@ -13,7 +13,8 @@ import { Users } from '@/pages/Users';
 import { UploadPage } from '@/pages/Upload';
 import { Profile } from '@/pages/Profile';
 import { CollectionPage } from '@/pages/CollectionPage';
-import { NationalCollectionsPage } from '@/pages/NationalCollectionsPage';\nimport { RecordPayment } from '@/pages/RecordPayment';
+import { NationalCollectionsPage } from '@/pages/NationalCollectionsPage';
+import { RecordPayment } from '@/pages/RecordPayment';
 
 export default function App() {
   return (
