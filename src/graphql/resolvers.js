@@ -1009,3 +1009,47 @@ export const resolvers = {
   }
 }
 
+async function generateDebtors(year, adminUserId) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('DELETE FROM debtors WHERE year = $1', [year]);
+    
+    const { rows: parishes } = await client.query('SELECT id, name FROM parishes WHERE is_active = true ORDER BY name');
+    if (parishes.length === 0) { await client.query('COMMIT'); return; }
+    
+    const { rows: collections } = await client.query('SELECT id, name FROM collections WHERE is_active = true ORDER BY name');
+    
+    for (const collection of collections) {
+      // Rectory and monthly collections use months 1-12
+      // National Collections and one-off collections use month 0
+      const isMonthly = ['Rectory', 'Harvest & Bazaar', 'Cathedraticum', 'Project Sunday', 'Seminary Collections'].includes(collection.name);
+      const monthsToCheck = isMonthly ? [1,2,3,4,5,6,7,8,9,10,11,12] : [0];
+      
+      for (const month of monthsToCheck) {
+        const { rows: paid } = await client.query(
+          `SELECT DISTINCT rr.parish_id FROM remittance_records rr
+           JOIN remittance_line_items rli ON rr.id = rli.remittance_record_id
+           WHERE rr.year = $1 AND rr.month = $2 AND rli.collection_id = $3`,
+          [year, month, collection.id]
+        );
+        const paidSet = new Set(paid.map(r => r.parish_id));
+        for (const parish of parishes) {
+          if (!paidSet.has(parish.id)) {
+            await client.query(
+              `INSERT INTO debtors (parish_id, year, month, collection_id, collection_name, amount_due, is_overdue)
+               VALUES ($1, $2, $3, $4, $5, 0, false)`,
+              [parish.id, year, month, collection.id, collection.name]
+            );
+          }
+        }
+      }
+    }
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}\n\n
