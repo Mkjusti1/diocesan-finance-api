@@ -13,7 +13,7 @@ import { Users } from '@/pages/Users';
 import { UploadPage } from '@/pages/Upload';
 import { Profile } from '@/pages/Profile';
 import { CollectionPage } from '@/pages/CollectionPage';
-import { NationalCollectionsPage } from '@/pages/NationalCollectionsPage';\nimport { RecordPayment } from '@/pages/RecordPayment';
+import { NationalCollectionsPage } from '@/pages/NationalCollectionsPage';
 
 export default function App() {
   return (
@@ -32,7 +32,7 @@ export default function App() {
               <Route path="/cathedraticum" element={<CollectionPage collectionName="Cathedraticum" title="Cathedraticum" />} />
               <Route path="/project-sunday" element={<CollectionPage collectionName="Project Sunday" title="Project Sunday" />} />
               <Route path="/seminary-collections" element={<CollectionPage collectionName="Seminary Collections" title="Seminary Collections" />} />
-              <Route path="/record-payment" element={<RecordPayment />} />\n              <Route path="/debtors" element={<Debtors />} />
+              <Route path="/debtors" element={<Debtors />} />
               <Route path="/upload" element={<UploadPage />} />
               <Route path="/users" element={<Users />} />
               <Route path="/profile" element={<Profile />} />
