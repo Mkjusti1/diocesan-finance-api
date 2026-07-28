@@ -6,17 +6,17 @@
 
 @layer base {
   :root {
-    --background: 43 100% 97%;        /* #FFF9F2 ivory */
-    --foreground: 15 42% 18%;         /* dark mahogany */
+    --background: 43 100% 97%;
+    --foreground: 15 42% 18%;
     --card: 0 0% 100%;
     --card-foreground: 15 42% 18%;
-    --primary: 16 63% 49%;            /* #D3542A ember */
+    --primary: 16 63% 49%;
     --primary-foreground: 43 100% 97%;
-    --secondary: 21 47% 90%;          /* #F5E3D7 blush */
+    --secondary: 21 47% 90%;
     --secondary-foreground: 15 42% 36%;
     --muted: 21 47% 90%;
-    --muted-foreground: 40 15% 55%;   /* #A7A68B sage */
-    --accent: 33 45% 60%;             /* #C89B6E gold */
+    --muted-foreground: 40 15% 55%;
+    --accent: 33 45% 60%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
@@ -48,4 +48,19 @@ html, body {
 
 * {
   box-sizing: border-box;
+}
+
+/* Sticky first column (Parish) — scrolling columns disappear behind it */
+table thead tr th:first-child,
+table tbody tr td:first-child {
+  position: sticky;
+  left: 0;
+  background-color: white;
+  z-index: 10;
+  box-shadow: 2px 0 4px rgba(0,0,0,0.06);
+}
+
+table thead tr th:first-child {
+  background-color: #FFF9F2;
+  z-index: 20;
 }
