@@ -465,7 +465,7 @@ async function startServer() {
     console.log('✓ Apollo Server started');
 
     // Mount Apollo middleware
-    apolloServer.applyMiddleware({ app, cors: false });
+    apolloServer.applyMiddleware({ app });
 
     // Start Express server
     const server = app.listen(PORT, "0.0.0.0", () => {
