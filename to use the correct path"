@@ -1,0 +1,13 @@
+[1mdiff --git a/client/src/pages/Debtors.jsx b/client/src/pages/Debtors.jsx[m
+[1mindex ccbeb2f..fb74a14 100644[m
+[1m--- a/client/src/pages/Debtors.jsx[m
+[1m+++ b/client/src/pages/Debtors.jsx[m
+[36m@@ -1,6 +1,6 @@[m
+ import { useState } from 'react';[m
+[31m-import { useQuery, useMutation } from '@apollo/client';[m
+[31m-import { gql } from '@apollo/client';[m
+[32m+[m[32mimport { useQuery, useMutation } from '@apollo/client/react';[m
+[32m+[m[32mimport { gql } from '@apollo/client/react';[m
+ import { AlertCircle, CheckCircle, RefreshCw, Loader2 } from 'lucide-react';[m
+ import { useAuth } from '@/context/AuthContext';[m
+ [m
