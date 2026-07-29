@@ -346,7 +346,7 @@ export const resolvers = {
       if (year) { params.push(year); query += ` AND year = $${params.length}`; }
       if (overdueOnly) { query += ' AND is_paid = false'; }
 
-      query += ' ORDER BY year DESC, month DESC, parish_id LIMIT 5000';
+      query += ' ORDER BY year DESC, month DESC, parish_id';
 
       const { rows } = await pool.query(query, params);
       const debtorRows = rows.map(mapDebtor);
