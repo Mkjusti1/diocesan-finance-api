@@ -9,7 +9,7 @@ import cors from 'cors';
 import multer from 'multer';
 import { typeDefs } from './graphql/typeDefs.js';
 import { resolvers } from './graphql/resolvers.js';
-import { processUpload, previewUpload, parseHorizontalCSV, parseNationalCollections, SpreadsheetParser, generateDebtors } from './services/spreadsheetParser.js';
+import { processUpload, previewUpload, parseHorizontalCSV, parseNationalCollections, parseYearlyColumnsCSV, SpreadsheetParser, generateDebtors } from './services/spreadsheetParser.js';
 import { pool } from './db/pool.js';
 
 dotenv.config();
@@ -17,6 +17,7 @@ dotenv.config();
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 const PORT = process.env.PORT || 4000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
+const YEARLY_FORMATS = ['harvest-bazaar', 'cathedraticum', 'project-sunday', 'seminary-collections'];
 
 // Configure multer for file uploads
 const upload = multer({
@@ -128,13 +129,27 @@ app.post('/api/upload/preview', authenticateToken, upload.single('file'), async 
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
     if (req.user.role !== 'ADMIN') return res.status(403).json({ error: 'Only admins can upload files' });
 
-    const { year } = req.body;
-    if (!year) return res.status(400).json({ error: 'Year is required' });
+    const { year, format, collectionName } = req.body;
+    if (!year && !YEARLY_FORMATS.includes(format)) {
+      return res.status(400).json({ error: 'Year is required' });
+    }
 
     const fileExt = req.file.originalname.split('.').pop().toLowerCase();
     const fileType = fileExt === 'xlsx' ? 'xlsx' : 'csv';
 
-    const preview = await previewUpload(req.file.path, parseInt(year), fileType, req.user.id);
+    let preview;
+    if (YEARLY_FORMATS.includes(format)) {
+      const records = await parseYearlyColumnsCSV(req.file.path, collectionName, req.user.id);
+      preview = records.map(r => ({
+        parishName: r.parishName,
+        year: r.year,
+        month: 0,
+        collectionType: r.collectionName,
+        amount: r.amount,
+      }));
+    } else {
+      preview = await previewUpload(req.file.path, parseInt(year), fileType, req.user.id);
+    }
 
     await fs.unlink(req.file.path).catch(() => {});
     res.json({ success: true, preview });
@@ -151,13 +166,16 @@ app.post('/api/upload/horizontal', authenticateToken, upload.single('file'), asy
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
     if (req.user.role !== 'ADMIN') return res.status(403).json({ error: 'Only admins can upload files' });
 
-    const { year, collectionName } = req.body;
-    if (!year) return res.status(400).json({ error: 'Year is required' });
+    const { year, collectionName, format } = req.body;
 
-    // Parse the horizontal CSV
-    const rawRecords = await parseHorizontalCSV(
-      req.file.path, parseInt(year), collectionName || 'General Collection', req.user.id
-    );
+    let rawRecords;
+    if (YEARLY_FORMATS.includes(format)) {
+      if (!collectionName) return res.status(400).json({ error: 'Collection name is required' });
+      rawRecords = await parseYearlyColumnsCSV(req.file.path, collectionName, req.user.id);
+    } else {
+      if (!year) return res.status(400).json({ error: 'Year is required' });
+      rawRecords = await parseHorizontalCSV(req.file.path, parseInt(year), collectionName || 'General Collection', req.user.id);
+    }
 
     if (rawRecords.length === 0) {
       await fs.unlink(req.file.path).catch(() => {});
@@ -244,8 +262,11 @@ app.post('/api/upload/horizontal', authenticateToken, upload.single('file'), asy
       client.release();
     }
 
-    // Generate debtors after releasing the client
-    await generateDebtors(parseInt(year), req.user.id);
+    const affectedYears = [...new Set(rawRecords.map(r => r.year))];
+    for (const y of affectedYears) {
+      await generateDebtors(y, req.user.id);
+    }
+
     await fs.unlink(req.file.path).catch(() => {});
 
     res.json({ success: true, summary, message: `Inserted ${summary.inserted} records` });

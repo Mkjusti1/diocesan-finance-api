@@ -285,6 +285,67 @@ export async function parseNationalCollections(filePath, year, uploadedByUserId)
   return records;
 }
 
+// Parse Yearly Columns CSV
+// Format: rows = parishes, columns = years (e.g. 2023, 2024, 2025), values = amounts
+export async function parseYearlyColumnsCSV(filePath, collectionName, uploadedByUserId) {
+  const content = await readFile(filePath, 'utf-8');
+  const firstLine = content.split('\n')[0];
+  const delimiter = firstLine.includes('\t') ? '\t' : ',';
+
+  const rows = csvParse(content, {
+    columns: true,
+    skip_empty_lines: true,
+    trim: true,
+    delimiter,
+    cast: false,
+  });
+
+  if (rows.length === 0) throw new Error('CSV file is empty or could not be parsed');
+
+  const headers = Object.keys(rows[0]);
+  const parishCol = headers.find(h =>
+    h.toLowerCase().includes('parish') || h.toLowerCase().includes('name')
+  );
+
+  if (!parishCol) throw new Error(`Could not find parish name column. Headers found: ${headers.join(', ')}`);
+
+  // Find year columns (4-digit numbers)
+  const yearCols = {};
+  headers.forEach(h => {
+    const trimmed = h.trim();
+    if (/^\d{4}$/.test(trimmed)) {
+      yearCols[h] = parseInt(trimmed);
+    }
+  });
+
+  if (Object.keys(yearCols).length === 0) {
+    throw new Error(`No year columns found. Headers: ${headers.join(', ')}`);
+  }
+
+  const records = [];
+
+  for (const row of rows) {
+    const parishName = row[parishCol]?.toString().trim();
+    if (!parishName || parishName.toLowerCase() === 'total') continue;
+
+    for (const [col, year] of Object.entries(yearCols)) {
+      const rawValue = row[col]?.toString().replace(/,/g, '').trim();
+      const amount = parseFloat(rawValue);
+      if (!amount || amount <= 0) continue;
+
+      records.push({
+        parishName,
+        year,
+        month: 0,
+        collectionName: collectionName || 'General Collection',
+        amount,
+      });
+    }
+  }
+
+  return records;
+}
+
 // ─── Preview (dry run — no DB writes) ────────────────────────────────────────
 export async function previewUpload(filePath, year, fileType = 'xlsx', uploadedByUserId) {
   const parser = new SpreadsheetParser(filePath);

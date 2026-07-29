@@ -29,10 +29,10 @@ export default function App() {
               <Route path="/parishes/:id" element={<ParishDetail />} />
               <Route path="/rectory" element={<CollectionPage collectionName="Rectory" title="Rectory" />} />
               <Route path="/national-collections" element={<NationalCollectionsPage />} />
-              <Route path="/harvest-bazaar" element={<CollectionPage collectionName="Harvest & Bazaar" title="Harvest & Bazaar" />} />
-              <Route path="/cathedraticum" element={<CollectionPage collectionName="Cathedraticum" title="Cathedraticum" />} />
-              <Route path="/project-sunday" element={<CollectionPage collectionName="Project Sunday" title="Project Sunday" />} />
-              <Route path="/seminary-collections" element={<CollectionPage collectionName="Seminary Collections" title="Seminary Collections" />} />
+              <Route path="/harvest-bazaar" element={<CollectionPage collectionName="Harvest & Bazaar" title="Harvest & Bazaar" type="annual" />} />
+              <Route path="/cathedraticum" element={<CollectionPage collectionName="Cathedraticum" title="Cathedraticum" type="annual" />} />
+              <Route path="/project-sunday" element={<CollectionPage collectionName="Project Sunday" title="Project Sunday" type="annual" />} />
+              <Route path="/seminary-collections" element={<CollectionPage collectionName="Seminary Collections" title="Seminary Collections" type="annual" />} />
               <Route path="/record-payment" element={<RecordPayment />} />
               <Route path="/debtors" element={<Debtors />} />
               <Route path="/upload" element={<UploadPage />} />

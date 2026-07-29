@@ -6,6 +6,7 @@ const YEAR = new Date().getFullYear();
 const API_URL = import.meta.env.VITE_API_URL || '';
 
 const HORIZONTAL_FORMATS = ['horizontal', 'harvest-bazaar', 'cathedraticum', 'project-sunday', 'seminary-collections'];
+const YEARLY_FORMATS = ['harvest-bazaar', 'cathedraticum', 'project-sunday', 'seminary-collections'];
 
 export function UploadPage() {
   const { user } = useAuth();
@@ -50,13 +51,15 @@ export function UploadPage() {
   };
 
   const runPreview = async () => {
-    if (!file || !year) return;
+    if (!file || (format === 'horizontal' && !year)) return;
     setStep('previewing');
     setError('');
 
     const formData = new FormData();
     formData.append('file', file);
     formData.append('year', year);
+    formData.append('format', format);
+    formData.append('collectionName', getCollectionName());
 
     try {
       const res = await fetch(`${API_URL}/api/upload/preview`, {
@@ -129,13 +132,14 @@ export function UploadPage() {
   };
 
   const runHorizontalUpload = async () => {
-    if (!file || !year || !getCollectionName()) return;
+    if (!file || (format === 'horizontal' && !year) || !getCollectionName()) return;
     setStep('uploading');
     setError('');
 
     const formData = new FormData();
     formData.append('file', file);
     formData.append('year', year);
+    formData.append('format', format);
     formData.append('collectionName', getCollectionName());
 
     try {
@@ -230,7 +234,8 @@ export function UploadPage() {
           </div>
 
           {/* Year + collection name */}
-          <div style={{ display: 'grid', gridTemplateColumns: HORIZONTAL_FORMATS.includes(format) ? '1fr 1fr' : '1fr', gap: '12px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: format === 'horizontal' ? '1fr 1fr' : '1fr', gap: '12px' }}>
+            {format === 'horizontal' && (
             <div>
               <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#8B4C39', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>
                 Financial Year *
@@ -240,6 +245,7 @@ export function UploadPage() {
                 style={{ width: '100%', height: '40px', borderRadius: '8px', border: '1px solid #F5E3D7', padding: '0 12px', fontSize: '14px', outline: 'none', color: '#1a0a06', boxSizing: 'border-box' }}
               />
             </div>
+            )}
 
             {HORIZONTAL_FORMATS.includes(format) && (
               <div>
@@ -271,10 +277,10 @@ export function UploadPage() {
             <div style={{ display: 'flex', flexWrap: 'wrap', backgroundColor: '#F5E3D7', borderRadius: '8px', padding: '3px', width: 'fit-content', gap: '2px' }}>
               {[
                 ['horizontal', 'Rectory (months as columns)'],
-                ['harvest-bazaar', 'Harvest & Bazaar (months as columns)'],
-                ['cathedraticum', 'Cathedraticum (months as columns)'],
-                ['project-sunday', 'Project Sunday (months as columns)'],
-                ['seminary-collections', 'Seminary Collections (months as columns)'],
+                ['harvest-bazaar', 'Harvest & Bazaar (years as columns)'],
+                ['cathedraticum', 'Cathedraticum (years as columns)'],
+                ['project-sunday', 'Project Sunday (years as columns)'],
+                ['seminary-collections', 'Seminary Collections (years as columns)'],
                 ['national', 'National Collections (collections as columns)'],
               ].map(([f, label]) => (
                 <button key={f} type="button" onClick={() => handleFormatChange(f)}
@@ -295,11 +301,11 @@ export function UploadPage() {
 
           <button
             onClick={handleUpload}
-            disabled={!file || !year || step === 'previewing' || step === 'uploading' || (HORIZONTAL_FORMATS.includes(format) && !getCollectionName())}
+            disabled={!file || (format === 'horizontal' && !year) || step === 'previewing' || step === 'uploading' || (HORIZONTAL_FORMATS.includes(format) && !getCollectionName())}
             style={{
               height: '44px', borderRadius: '8px', border: 'none',
-              backgroundColor: (!file || !year || (HORIZONTAL_FORMATS.includes(format) && !getCollectionName())) ? '#F5E3D7' : '#8B4C39',
-              color: 'white', fontSize: '14px', fontWeight: 600, cursor: (!file || !year || (HORIZONTAL_FORMATS.includes(format) && !getCollectionName())) ? 'not-allowed' : 'pointer',
+              backgroundColor: (!file || (format === 'horizontal' && !year) || (HORIZONTAL_FORMATS.includes(format) && !getCollectionName())) ? '#F5E3D7' : '#8B4C39',
+              color: 'white', fontSize: '14px', fontWeight: 600, cursor: (!file || (format === 'horizontal' && !year) || (HORIZONTAL_FORMATS.includes(format) && !getCollectionName())) ? 'not-allowed' : 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
               transition: 'all 0.2s'
             }}
@@ -330,7 +336,7 @@ export function UploadPage() {
                 ['Total Records', preview.length],
                 ['Parishes', new Set(preview.map(r => r.parishName)).size],
                 ['Total Amount', '₦' + preview.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0).toLocaleString()],
-                ['Months', new Set(preview.map(r => r.month)).size],
+                [YEARLY_FORMATS.includes(format) ? 'Years' : 'Months', new Set(preview.map(r => YEARLY_FORMATS.includes(format) ? r.year : r.month)).size],
               ].map(([label, value]) => (
                 <div key={label} style={{ backgroundColor: '#FFF9F2', borderRadius: '8px', padding: '12px', textAlign: 'center' }}>
                   <p style={{ fontSize: '11px', color: '#A7A68B', marginBottom: '4px' }}>{label}</p>
@@ -343,8 +349,8 @@ export function UploadPage() {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
                 <thead>
                   <tr style={{ backgroundColor: '#FFF9F2' }}>
-                    {['Parish', 'Month', 'Collection', 'Amount', 'Year'].map(h => (
-                      <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 700, color: '#8B4C39', borderBottom: '1px solid #F5E3D7', whiteSpace: 'nowrap' }}>{h}</th>
+                    {['Parish', YEARLY_FORMATS.includes(format) ? 'Year' : 'Month', 'Collection', 'Amount', 'Year'].map((h, i) => (
+                      <th key={i} style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 700, color: '#8B4C39', borderBottom: '1px solid #F5E3D7', whiteSpace: 'nowrap' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -352,7 +358,7 @@ export function UploadPage() {
                   {preview.slice(0, 10).map((row, i) => (
                     <tr key={i} style={{ borderBottom: '1px solid #F5E3D7' }}>
                       <td style={{ padding: '10px 12px', fontWeight: 600, color: '#1a0a06', whiteSpace: 'nowrap' }}>{row.parishName}</td>
-                      <td style={{ padding: '10px 12px', color: '#A7A68B' }}>{row.month}</td>
+                      <td style={{ padding: '10px 12px', color: '#A7A68B' }}>{YEARLY_FORMATS.includes(format) ? row.year : row.month}</td>
                       <td style={{ padding: '10px 12px', color: '#A7A68B' }}>{row.collectionType}</td>
                       <td style={{ padding: '10px 12px', fontWeight: 600, color: '#8B4C39', whiteSpace: 'nowrap' }}>₦{parseFloat(row.amount).toLocaleString()}</td>
                       <td style={{ padding: '10px 12px', color: '#A7A68B' }}>{row.year}</td>
