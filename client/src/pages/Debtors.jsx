@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery, useMutation } from '@apollo/client';
+import { useQuery, useMutation } from '@apollo/client/react';
 import { gql } from '@apollo/client';
 import { AlertCircle, CheckCircle, RefreshCw, Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
@@ -42,8 +42,6 @@ const MONTH_NAMES = [
 ];
 
 const YEARLY_COLLECTIONS = ['Harvest & Bazaar', 'Cathedraticum', 'Project Sunday', 'Seminary Collections'];
-
-/* ─── helpers ─── */
 
 function processDebtors(debtors, selectedYear) {
   const sections = [];
@@ -216,8 +214,6 @@ function TabularSection({ title, subtitle, columns }) {
   );
 }
 
-/* ─── page ─── */
-
 export function Debtors() {
   const { user } = useAuth();
   const [year, setYear] = useState(YEAR);
@@ -242,7 +238,6 @@ export function Debtors() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#1a0a06', marginBottom: '4px' }}>Debtors</h1>
@@ -339,7 +334,6 @@ export function Debtors() {
         </div>
       </div>
 
-      {/* Regenerate feedback */}
       {regenData?.regenerateDebtors?.success && (
         <div style={{
           padding: '12px 16px',
@@ -371,7 +365,6 @@ export function Debtors() {
         </div>
       )}
 
-      {/* Error */}
       {error && (
         <div style={{
           padding: '16px 20px',
@@ -394,7 +387,6 @@ export function Debtors() {
         </div>
       )}
 
-      {/* Loading */}
       {loading && (
         <div style={{ textAlign: 'center', padding: '48px', color: '#A7A68B' }}>
           <Loader2 size={28} style={{ animation: 'spin 1s linear infinite', margin: '0 auto 12px' }} />
@@ -402,7 +394,6 @@ export function Debtors() {
         </div>
       )}
 
-      {/* Empty */}
       {!loading && sections.length === 0 && (
         <div style={{ textAlign: 'center', padding: '48px' }}>
           <div style={{ width: '56px', height: '56px', borderRadius: '50%', backgroundColor: '#ecfdf5', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
@@ -413,7 +404,6 @@ export function Debtors() {
         </div>
       )}
 
-      {/* Sections */}
       {sections.map((section, i) => (
         <TabularSection
           key={i}
