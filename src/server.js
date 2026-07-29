@@ -7,6 +7,7 @@ import dotenv from 'dotenv';
 import { promises as fs } from 'fs';
 import cors from 'cors';
 import multer from 'multer';
+import rateLimit from 'express-rate-limit';
 import { typeDefs } from './graphql/typeDefs.js';
 import { resolvers } from './graphql/resolvers.js';
 import { processUpload, previewUpload, parseHorizontalCSV, parseNationalCollections, parseYearlyColumnsCSV, SpreadsheetParser, generateDebtors } from './services/spreadsheetParser.js';
@@ -37,6 +38,24 @@ const upload = multer({
     }
   },
   limits: { fileSize: 10 * 1024 * 1024 } // 10MB
+});
+
+
+// Rate limiting
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: { error: 'Too many login attempts, please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const apiLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000,
+  max: 100,
+  message: { error: 'Too many requests, please slow down.' },
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 
 // Authentication middleware
@@ -95,17 +114,31 @@ const apolloServer = new ApolloServer({
 const app = express();
 
 // Middleware
+const corsOrigins = [
+  'https://diocesan-finance-api.vercel.app',
+  ...(process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : [])
+];
+if (NODE_ENV === 'development') {
+  corsOrigins.push('http://localhost:5173', 'http://localhost:5174');
+}
+
 app.use(cors({
-  origin: [
-    'https://diocesan-finance-api.vercel.app',
-    'http://localhost:5173',
-    'http://localhost:5174',
-    ...(process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : [])
-  ],
+  origin: corsOrigins,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
+// Security headers
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+  next();
+});
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
@@ -124,7 +157,7 @@ app.get('/health', (req, res) => {
 
 
 // REST endpoint for upload preview (dry run)
-app.post('/api/upload/preview', authenticateToken, upload.single('file'), async (req, res) => {
+app.post('/api/upload/preview', apiLimiter, authenticateToken, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
     if (req.user.role !== 'ADMIN') return res.status(403).json({ error: 'Only admins can upload files' });
@@ -161,7 +194,7 @@ app.post('/api/upload/preview', authenticateToken, upload.single('file'), async 
 
 
 // Upload horizontal CSV (one row per parish, columns are months)
-app.post('/api/upload/horizontal', authenticateToken, upload.single('file'), async (req, res) => {
+app.post('/api/upload/horizontal', apiLimiter, authenticateToken, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
     if (req.user.role !== 'ADMIN') return res.status(403).json({ error: 'Only admins can upload files' });
@@ -279,7 +312,7 @@ app.post('/api/upload/horizontal', authenticateToken, upload.single('file'), asy
 
 
 // Upload National Collections CSV (rows = parishes, columns = collection types)
-app.post('/api/upload/national', authenticateToken, upload.single('file'), async (req, res) => {
+app.post('/api/upload/national', apiLimiter, authenticateToken, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
     if (req.user.role !== 'ADMIN') return res.status(403).json({ error: 'Admins only' });
@@ -389,7 +422,7 @@ app.post('/api/upload/national', authenticateToken, upload.single('file'), async
 });
 
 // REST endpoint for file upload
-app.post('/api/upload', authenticateToken, upload.single('file'), async (req, res) => {
+app.post('/api/upload', apiLimiter, authenticateToken, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });

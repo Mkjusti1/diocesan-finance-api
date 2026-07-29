@@ -6,7 +6,11 @@ import { logAuditEvent } from '../utils/auditLog.js';
 import { generateDebtors } from '../services/spreadsheetParser.js';
 import { ensurePriestTokenForParish } from '../utils/priestTokens.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  console.error('FATAL: JWT_SECRET environment variable is not set');
+  process.exit(1);
+}
 
 const MONTH_NAMES = [
   'Annual', 'January', 'February', 'March', 'April', 'May', 'June',
@@ -16,13 +20,31 @@ const MONTH_NAMES = [
 // ─── Auth Helpers ────────────────────────────────────────────────────────────
 
 function generateToken(user) {
+  // Priests get 1-year sessions (they use static tokens, re-login is burdensome)
+  // Admin/Bishop get 7-day sessions
+  const expiresIn = user.role === 'PRIEST' ? '365d' : '7d';
   return jwt.sign(
     { id: user.id, email: user.email, role: user.role, parishId: user.parish_id },
     JWT_SECRET,
-    { expiresIn: '7d' }
+    { expiresIn }
   );
 }
 
+
+function validatePassword(password) {
+  if (!password || password.length < 8) {
+    throw new Error('Password must be at least 8 characters long');
+  }
+  if (!/[A-Z]/.test(password)) {
+    throw new Error('Password must contain at least one uppercase letter');
+  }
+  if (!/[a-z]/.test(password)) {
+    throw new Error('Password must contain at least one lowercase letter');
+  }
+  if (!/[0-9]/.test(password)) {
+    throw new Error('Password must contain at least one number');
+  }
+}
 function requireAuth(user) {
   if (!user) throw new Error('UNAUTHENTICATED: Please log in');
 }
