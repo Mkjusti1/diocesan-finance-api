@@ -7,6 +7,8 @@ const API_URL = import.meta.env.VITE_API_URL || '';
 
 const HORIZONTAL_FORMATS = ['horizontal', 'harvest-bazaar', 'cathedraticum', 'project-sunday', 'seminary-collections'];
 const YEARLY_FORMATS = ['harvest-bazaar', 'cathedraticum', 'project-sunday', 'seminary-collections'];
+const YEARLY_FORMATS = ['harvest-bazaar', 'cathedraticum', 'project-sunday', 'seminary-collections'];
+const YEARLY_FORMATS = ['harvest-bazaar', 'cathedraticum', 'project-sunday', 'seminary-collections'];
 
 export function UploadPage() {
   const { user } = useAuth();
@@ -236,6 +238,8 @@ export function UploadPage() {
           {/* Year + collection name */}
           <div style={{ display: 'grid', gridTemplateColumns: format === 'horizontal' ? '1fr 1fr' : '1fr', gap: '12px' }}>
             {format === 'horizontal' && (
+            {format === 'horizontal' && (
+            {format === 'horizontal' && (
             <div>
               <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#8B4C39', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>
                 Financial Year *
@@ -245,6 +249,8 @@ export function UploadPage() {
                 style={{ width: '100%', height: '40px', borderRadius: '8px', border: '1px solid #F5E3D7', padding: '0 12px', fontSize: '14px', outline: 'none', color: '#1a0a06', boxSizing: 'border-box' }}
               />
             </div>
+            )}
+            )}
             )}
 
             {HORIZONTAL_FORMATS.includes(format) && (
