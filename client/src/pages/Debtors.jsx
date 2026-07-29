@@ -1,357 +1,427 @@
-import { useMemo, useState } from 'react';
-import { useQuery, useMutation } from '@apollo/client/react';
-import { GET_DEBTORS, REGENERATE_DEBTORS } from '@/graphql/queries';
+import { useState } from 'react';
+import { useQuery, useMutation } from '@apollo/client';
+import { gql } from '@apollo/client';
+import { AlertCircle, CheckCircle, RefreshCw, Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
-// ─── Helpers ──────────────────────────────────────────────────────────────
+const YEAR = new Date().getFullYear();
 
-// A, B, C ... Z, AA, AB ... (in case a year ever has 27+ sections)
-function letterFor(index) {
-  let n = index;
-  let s = '';
-  do {
-    s = String.fromCharCode(65 + (n % 26)) + s;
-    n = Math.floor(n / 26) - 1;
-  } while (n >= 0);
-  return s;
-}
+const GET_DEBTORS = gql`
+  query GetDebtors($year: Int, $overdueOnly: Boolean) {
+    debtors(year: $year, overdueOnly: $overdueOnly) {
+      id
+      year
+      month
+      monthName
+      balance
+      isPaid
+      parish {
+        id
+        name
+      }
+      collection {
+        id
+        name
+      }
+    }
+  }
+`;
 
-// Group flat, unpaid debtor rows into: per year -> Rectory (by month) + National Collection (by collection)
-// month 0 = National Collection / annual rows, months 1-12 = Rectory monthly rows.
-function buildDebtorGroups(debtors) {
-  const byYear = new Map();
+const REGENERATE_DEBTORS = gql`
+  mutation RegenerateDebtors($year: Int) {
+    regenerateDebtors(year: $year) {
+      success
+      years
+    }
+  }
+`;
+
+const MONTH_NAMES = [
+  'Annual', 'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
+
+const YEARLY_COLLECTIONS = ['Harvest & Bazaar', 'Cathedraticum', 'Project Sunday', 'Seminary Collections'];
+
+/* ─── helpers ─── */
+
+function processDebtors(debtors, selectedYear) {
+  const sections = [];
+
+  // 1. Rectory — group by month (filtered by selected year)
+  const rectoryMonths = {};
+  for (let m = 1; m <= 12; m++) rectoryMonths[m] = [];
 
   for (const d of debtors) {
-    if (d.isPaid || !d.parish) continue;
-    if (!byYear.has(d.year)) byYear.set(d.year, { rectory: new Map(), national: new Map() });
-    const bucket = byYear.get(d.year);
+    if (d.collection?.name !== 'Rectory' || d.isPaid) continue;
+    if (selectedYear && d.year !== selectedYear) continue;
+    if (rectoryMonths[d.month]) rectoryMonths[d.month].push(d.parish.name);
+  }
 
-    if (d.month === 0) {
-      const key = d.collection?.id ?? d.collection?.name ?? 'uncategorized';
-      if (!bucket.national.has(key)) {
-        bucket.national.set(key, {
-          id: d.collection?.id ?? key,
-          name: d.collection?.name || 'Uncategorized',
-          parishes: new Map(),
-        });
-      }
-      bucket.national.get(key).parishes.set(d.parish.id, d.parish.name);
-    } else {
-      if (!bucket.rectory.has(d.month)) {
-        bucket.rectory.set(d.month, { month: d.month, monthName: d.monthName, parishes: new Map() });
-      }
-      bucket.rectory.get(d.month).parishes.set(d.parish.id, d.parish.name);
+  const rectoryColumns = Object.entries(rectoryMonths)
+    .filter(([, parishes]) => parishes.length > 0)
+    .map(([month, parishes]) => ({
+      label: MONTH_NAMES[month],
+      parishes: [...new Set(parishes)].sort(),
+    }));
+
+  if (rectoryColumns.length > 0) {
+    sections.push({
+      title: 'Rectory',
+      subtitle: String(selectedYear || ''),
+      columns: rectoryColumns,
+    });
+  }
+
+  // 2. National Collections — group by collection name (filtered by selected year)
+  const nationalMap = {};
+  for (const d of debtors) {
+    const cName = d.collection?.name;
+    if (!cName || cName === 'Rectory' || YEARLY_COLLECTIONS.includes(cName)) continue;
+    if (d.isPaid) continue;
+    if (selectedYear && d.year !== selectedYear) continue;
+    if (!nationalMap[cName]) nationalMap[cName] = [];
+    nationalMap[cName].push(d.parish.name);
+  }
+
+  const nationalColumns = Object.entries(nationalMap)
+    .map(([label, parishes]) => ({
+      label,
+      parishes: [...new Set(parishes)].sort(),
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+
+  if (nationalColumns.length > 0) {
+    sections.push({
+      title: 'National Collections',
+      subtitle: String(selectedYear || ''),
+      columns: nationalColumns,
+    });
+  }
+
+  // 3. Yearly collections — group by year (show ALL years)
+  for (const collName of YEARLY_COLLECTIONS) {
+    const yearMap = {};
+    for (const d of debtors) {
+      if (d.collection?.name !== collName || d.isPaid) continue;
+      if (!yearMap[d.year]) yearMap[d.year] = [];
+      yearMap[d.year].push(d.parish.name);
+    }
+
+    const yearColumns = Object.entries(yearMap)
+      .sort(([a], [b]) => parseInt(a) - parseInt(b))
+      .map(([year, parishes]) => ({
+        label: year,
+        parishes: [...new Set(parishes)].sort(),
+      }));
+
+    if (yearColumns.length > 0) {
+      sections.push({
+        title: collName,
+        subtitle: '',
+        columns: yearColumns,
+      });
     }
   }
 
-  const years = [...byYear.keys()].sort((a, b) => a - b);
-
-  return years.map(year => {
-    const bucket = byYear.get(year);
-
-    const rectory = [...bucket.rectory.values()]
-      .sort((a, b) => a.month - b.month)
-      .map(g => ({ ...g, parishes: [...g.parishes.values()].sort((a, b) => a.localeCompare(b)) }));
-
-    const national = [...bucket.national.values()]
-      .sort((a, b) => Number(a.id) - Number(b.id) || a.name.localeCompare(b.name))
-      .map(g => ({ ...g, parishes: [...g.parishes.values()].sort((a, b) => a.localeCompare(b)) }));
-
-    return { year, rectory, national };
-  });
+  return sections;
 }
 
-function sectionText(letter, title, parishes) {
-  const lines = [`${letter}. ${title}`, ''];
-  parishes.forEach((name, i) => lines.push(`${i + 1}. ${name}`));
-  return lines.join('\n');
-}
+function TabularSection({ title, subtitle, columns }) {
+  if (!columns || columns.length === 0) return null;
 
-function formatSectionTitle(title, year) {
-  const normalized = title?.trim() || '';
-  return normalized.includes(String(year)) ? normalized : `${normalized} ${year}`;
-}
-
-
-// ─── Small pieces ─────────────────────────────────────────────────────────
-
-function CopyButton({ text, sectionKey, copiedKey, setCopiedKey }) {
-  const copied = copiedKey === sectionKey;
-
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(text);
-    } catch {
-      // Fallback for browsers without clipboard API access
-      const textarea = document.createElement('textarea');
-      textarea.value = text;
-      textarea.style.position = 'fixed';
-      textarea.style.opacity = '0';
-      document.body.appendChild(textarea);
-      textarea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textarea);
-    }
-    setCopiedKey(sectionKey);
-    setTimeout(() => setCopiedKey(prev => (prev === sectionKey ? null : prev)), 1800);
-  };
+  const maxRows = Math.max(...columns.map(c => Math.ceil(c.parishes.length / 2)));
 
   return (
-    <button onClick={handleCopy} style={{
-      padding: '6px 12px', borderRadius: '7px',
-      border: `1px solid ${copied ? '#86efac' : '#F5E3D7'}`,
-      backgroundColor: copied ? '#f0fdf4' : 'white',
-      color: copied ? '#166534' : '#8B4C39',
-      fontSize: '12px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
-      transition: 'all 0.15s'
-    }}>
-      {copied ? 'Copied ✓' : 'Copy'}
-    </button>
-  );
-}
-
-function SectionCard({ sectionKey, letter, title, parishes, copiedKey, setCopiedKey }) {
-  return (
-    <div style={{
-      backgroundColor: 'white', borderRadius: '10px', border: '1px solid #F5E3D7',
-      overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
-    }}>
-      <div style={{
-        padding: '12px 16px', backgroundColor: '#FFF9F2', borderBottom: '1px solid #F5E3D7'
-      }}>
-        <span style={{ fontSize: '13px', fontWeight: 700, color: '#1a0a06' }}>
-          {letter}. {title}
-          <span style={{ fontWeight: 600, color: '#A7A68B', marginLeft: '8px' }}>
-            ({parishes.length})
-          </span>
-        </span>
+    <div style={{ marginBottom: '32px', border: '1px solid #F5E3D7', borderRadius: '12px', overflow: 'hidden' }}>
+      <div style={{ padding: '14px 20px', backgroundColor: '#FFF9F2', borderBottom: '1px solid #F5E3D7' }}>
+        <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#8B4C39' }}>
+          {title}
+          {subtitle ? <span style={{ fontWeight: 400, color: '#A7A68B', marginLeft: '8px' }}>{subtitle}</span> : null}
+        </h3>
       </div>
-      <ol style={{ margin: 0, padding: '10px 16px 14px 34px' }}>
-        {parishes.map(name => (
-          <li key={name} style={{ fontSize: '13px', color: '#3d1e12', padding: '3px 0' }}>
-            {name}
-          </li>
-        ))}
-      </ol>
-      <div style={{
-        display: 'flex', justifyContent: 'flex-end',
-        padding: '10px 16px', borderTop: '1px solid #F5E3D7'
-      }}>
-        <CopyButton
-          text={sectionText(letter, title, parishes)}
-          sectionKey={sectionKey}
-          copiedKey={copiedKey}
-          setCopiedKey={setCopiedKey}
-        />
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', tableLayout: 'fixed' }}>
+          <colgroup>
+            {columns.map((_, i) => (
+              <col key={`cg-${i}`} span={2} style={{ minWidth: '130px' }} />
+            ))}
+          </colgroup>
+          <thead>
+            <tr>
+              {columns.map((col, i) => (
+                <th
+                  key={`th-${i}`}
+                  colSpan={2}
+                  style={{
+                    padding: '10px 8px',
+                    textAlign: 'center',
+                    fontWeight: 700,
+                    color: '#8B4C39',
+                    borderBottom: '2px solid #F5E3D7',
+                    borderRight: i < columns.length - 1 ? '1px solid #F5E3D7' : 'none',
+                    backgroundColor: '#FFF9F2',
+                    fontSize: '11px',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em',
+                  }}
+                >
+                  {col.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {Array.from({ length: maxRows }).map((_, rowIdx) => (
+              <tr key={`tr-${rowIdx}`}>
+                {columns.flatMap((col, colIdx) => {
+                  const mid = Math.ceil(col.parishes.length / 2);
+                  const left = col.parishes[rowIdx];
+                  const right = col.parishes[rowIdx + mid];
+                  return [
+                    <td
+                      key={`l-${rowIdx}-${colIdx}`}
+                      style={{
+                        padding: '5px 10px',
+                        borderBottom: '1px solid #F5E3D7',
+                        borderRight: '1px solid #F5E3D7',
+                        color: '#1a0a06',
+                        whiteSpace: 'nowrap',
+                        width: '50%',
+                      }}
+                    >
+                      {left ? `${rowIdx + 1}. ${left}` : ''}
+                    </td>,
+                    <td
+                      key={`r-${rowIdx}-${colIdx}`}
+                      style={{
+                        padding: '5px 10px',
+                        borderBottom: '1px solid #F5E3D7',
+                        borderRight: colIdx < columns.length - 1 ? '1px solid #F5E3D7' : 'none',
+                        color: '#1a0a06',
+                        whiteSpace: 'nowrap',
+                        width: '50%',
+                      }}
+                    >
+                      {right ? `${rowIdx + 1 + mid}. ${right}` : ''}
+                    </td>,
+                  ];
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
 }
 
-function GroupHeading({ children }) {
-  return (
-    <h3 style={{
-      fontSize: '12px', fontWeight: 700, color: '#8B4C39',
-      textTransform: 'uppercase', letterSpacing: '0.06em', margin: '4px 0 2px'
-    }}>
-      {children}
-    </h3>
-  );
-}
-
-// ─── Main page ────────────────────────────────────────────────────────────
+/* ─── page ─── */
 
 export function Debtors() {
   const { user } = useAuth();
+  const [year, setYear] = useState(YEAR);
   const [confirming, setConfirming] = useState(false);
-  const [copiedKey, setCopiedKey] = useState(null);
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
-  // No `year` variable => every year with outstanding debtors comes back,
-  // and the page groups/updates itself automatically as new years appear.
   const { data, loading, error, refetch } = useQuery(GET_DEBTORS, {
-    variables: { year: selectedYear, overdueOnly: true },
-    errorPolicy: 'all',
+    variables: { overdueOnly: true },
+    fetchPolicy: 'network-only',
   });
-  const [regenerateDebtors, { loading: regenerating, data: regenData, error: regenError }] = useMutation(REGENERATE_DEBTORS);
 
-  const debtors = useMemo(() => data?.debtors || [], [data]);
-  const yearGroups = useMemo(() => buildDebtorGroups(debtors), [debtors]);
+  const [regenerate, { data: regenData, error: regenError }] = useMutation(REGENERATE_DEBTORS);
+
+  const debtors = data?.debtors || [];
+  const sections = processDebtors(debtors, year);
   const totalOutstanding = debtors.filter(d => !d.isPaid).length;
 
   const handleRegenerate = async () => {
-    try {
-      await regenerateDebtors({ variables: { year: null } });
-      await refetch();
-      setConfirming(false);
-    } catch {
-      // error surfaced via regenError below
-    }
+    await regenerate();
+    await refetch();
+    setConfirming(false);
   };
-
-  if (loading) return <div style={{ padding: '60px', textAlign: 'center', fontSize: '13px', color: '#A7A68B' }}>Loading debtors...</div>;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#1a0a06', marginBottom: '4px' }}>Debtors</h1>
           <p style={{ fontSize: '13px', color: '#A7A68B' }}>
-            {totalOutstanding} outstanding record{totalOutstanding !== 1 ? 's' : ''} across {yearGroups.length} year{yearGroups.length !== 1 ? 's' : ''}
+            {totalOutstanding} outstanding record{totalOutstanding !== 1 ? 's' : ''}
           </p>
         </div>
-      </div>
 
-      {/* Year selector */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-        <label style={{ fontSize: '13px', fontWeight: 600, color: '#8B4C39' }}>Year:</label>
-        <select
-          value={selectedYear}
-          onChange={e => setSelectedYear(parseInt(e.target.value))}
-          style={{
-            height: '36px', borderRadius: '8px', border: '1px solid #F5E3D7',
-            padding: '0 12px', fontSize: '13px', color: '#1a0a06', backgroundColor: 'white',
-            outline: 'none', cursor: 'pointer'
-          }}
-        >
-          {[2024, 2025, 2026, 2027, 2028].map(y => (
-            <option key={y} value={y}>{y}</option>
-          ))}
-        </select>
-      </div>
-
-      {/* Error banner */}
-      {error && (
-        <div style={{
-          backgroundColor: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: '10px',
-          padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px'
-        }}>
-          <div>
-            <p style={{ fontSize: '13px', fontWeight: 700, color: '#B91C1C' }}>Couldn't load debtors</p>
-            <p style={{ fontSize: '12px', color: '#991B1B', marginTop: '2px' }}>{(error.message || '').split('timeout exceeded').length > 2 ? 'Server is warming up — please click Retry or Regenerate Debtors.' : (error.message || 'Failed to fetch')}</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <label style={{ fontSize: '12px', fontWeight: 600, color: '#8B4C39' }}>Year:</label>
+            <select
+              value={year}
+              onChange={e => setYear(parseInt(e.target.value))}
+              style={{
+                height: '36px',
+                borderRadius: '8px',
+                border: '1px solid #F5E3D7',
+                padding: '0 12px',
+                fontSize: '13px',
+                color: '#1a0a06',
+                backgroundColor: 'white',
+                outline: 'none',
+                cursor: 'pointer',
+              }}
+            >
+              {Array.from({ length: 7 }, (_, i) => YEAR - 3 + i).map(y => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
           </div>
-          <button onClick={() => refetch()} style={{
-            padding: '8px 14px', borderRadius: '8px', border: '1px solid #FCA5A5',
-            backgroundColor: 'white', color: '#B91C1C', fontSize: '12px', fontWeight: 700, cursor: 'pointer'
-          }}>Retry</button>
-        </div>
-      )}
 
-      {/* Admin: regenerate debtors for all years */}
-      {user?.role === 'ADMIN' && (
-        <div style={{
-          backgroundColor: '#FFF9F2', border: '1px solid #F5E3D7', borderRadius: '10px',
-          padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap'
-        }}>
-          <div>
-            <p style={{ fontSize: '13px', fontWeight: 700, color: '#8B4C39' }}>Regenerate debtors for all years</p>
-            <p style={{ fontSize: '12px', color: '#A7A68B', marginTop: '2px' }}>
-              Recalculates debtor records for every year with uploaded data, including National Collections. Safe to run anytime — it overwrites existing debtor rows rather than duplicating them.
-            </p>
-            {regenData?.regenerateDebtors?.success && (
-              <p style={{ fontSize: '12px', color: '#166534', marginTop: '6px', fontWeight: 600 }}>
-                Done — regenerated for {regenData.regenerateDebtors.years.join(', ')}.
-              </p>
-            )}
-            {regenError && (
-              <p style={{ fontSize: '12px', color: '#B91C1C', marginTop: '6px', fontWeight: 600 }}>
-                Failed: {regenError.message}
-              </p>
-            )}
-          </div>
-          {!confirming ? (
-            <button onClick={() => setConfirming(true)} disabled={regenerating} style={{
-              padding: '10px 16px', borderRadius: '8px', border: '1px solid #F5E3D7',
-              backgroundColor: 'white', color: '#8B4C39', fontSize: '13px', fontWeight: 700,
-              cursor: 'pointer', whiteSpace: 'nowrap'
-            }}>
-              Regenerate Debtors
-            </button>
-          ) : (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <button onClick={() => setConfirming(false)} disabled={regenerating} style={{
-                padding: '10px 16px', borderRadius: '8px', border: '1px solid #F5E3D7',
-                backgroundColor: 'white', color: '#A7A68B', fontSize: '13px', fontWeight: 700,
-                cursor: 'pointer', whiteSpace: 'nowrap'
-              }}>
-                Cancel
-              </button>
-              <button onClick={handleRegenerate} disabled={regenerating} style={{
-                padding: '10px 16px', borderRadius: '8px', border: '1px solid #D3542A',
-                backgroundColor: '#D3542A', color: 'white', fontSize: '13px', fontWeight: 700,
-                cursor: regenerating ? 'default' : 'pointer', whiteSpace: 'nowrap',
-                opacity: regenerating ? 0.7 : 1
-              }}>
-                {regenerating ? 'Regenerating…' : 'Confirm — run now'}
-              </button>
-            </div>
+          {user?.role === 'ADMIN' && (
+            <>
+              {!confirming ? (
+                <button
+                  onClick={() => setConfirming(true)}
+                  style={{
+                    height: '36px',
+                    borderRadius: '8px',
+                    border: '1px solid #F5E3D7',
+                    backgroundColor: 'white',
+                    color: '#8B4C39',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    padding: '0 14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }}
+                >
+                  <RefreshCw size={14} /> Regenerate
+                </button>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '12px', color: '#A7A68B' }}>Sure?</span>
+                  <button
+                    onClick={handleRegenerate}
+                    style={{
+                      height: '36px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      backgroundColor: '#8B4C39',
+                      color: 'white',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      padding: '0 14px',
+                    }}
+                  >
+                    Yes
+                  </button>
+                  <button
+                    onClick={() => setConfirming(false)}
+                    style={{
+                      height: '36px',
+                      borderRadius: '8px',
+                      border: '1px solid #F5E3D7',
+                      backgroundColor: 'white',
+                      color: '#A7A68B',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      padding: '0 14px',
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
+      </div>
+
+      {/* Regenerate feedback */}
+      {regenData?.regenerateDebtors?.success && (
+        <div style={{
+          padding: '12px 16px',
+          backgroundColor: '#ecfdf5',
+          borderRadius: '8px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          fontSize: '13px',
+          color: '#059669',
+        }}>
+          <CheckCircle size={16} />
+          Regenerated for {regenData.regenerateDebtors.years.join(', ')}.
+        </div>
+      )}
+      {regenError && (
+        <div style={{
+          padding: '12px 16px',
+          backgroundColor: '#fef2f2',
+          borderRadius: '8px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          fontSize: '13px',
+          color: '#dc2626',
+        }}>
+          <AlertCircle size={16} />
+          Failed: {regenError.message}
+        </div>
       )}
 
-      {/* Grouped debtor sections */}
-      {yearGroups.length === 0 ? (
+      {/* Error */}
+      {error && (
         <div style={{
-          backgroundColor: 'white', borderRadius: '12px', border: '1px solid #F5E3D7',
-          padding: '80px 40px', textAlign: 'center'
+          padding: '16px 20px',
+          backgroundColor: '#fef2f2',
+          borderRadius: '12px',
+          border: '1px solid #fecaca',
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: '10px',
         }}>
-          <div style={{
-            width: '48px', height: '48px', borderRadius: '12px',
-            backgroundColor: '#F5E3D7', display: 'flex', alignItems: 'center',
-            justifyContent: 'center', margin: '0 auto 16px'
-          }}>
-            <span style={{ fontSize: '22px' }}>✓</span>
+          <AlertCircle size={18} color="#dc2626" style={{ flexShrink: 0, marginTop: '1px' }} />
+          <div>
+            <p style={{ fontSize: '13px', fontWeight: 700, color: '#dc2626', marginBottom: '2px' }}>
+              Couldn't load debtors
+            </p>
+            <p style={{ fontSize: '12px', color: '#dc2626' }}>
+              {(error.message || '').includes('timeout') ? 'Server is warming up — please retry.' : (error.message || 'Failed to fetch')}
+            </p>
           </div>
-          <p style={{ fontSize: '14px', fontWeight: 600, color: '#1a0a06', marginBottom: '4px' }}>
-            No outstanding debtor records
-          </p>
+        </div>
+      )}
+
+      {/* Loading */}
+      {loading && (
+        <div style={{ textAlign: 'center', padding: '48px', color: '#A7A68B' }}>
+          <Loader2 size={28} style={{ animation: 'spin 1s linear infinite', margin: '0 auto 12px' }} />
+          <p style={{ fontSize: '13px' }}>Loading debtors...</p>
+        </div>
+      )}
+
+      {/* Empty */}
+      {!loading && sections.length === 0 && (
+        <div style={{ textAlign: 'center', padding: '48px' }}>
+          <div style={{ width: '56px', height: '56px', borderRadius: '50%', backgroundColor: '#ecfdf5', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+            <CheckCircle size={28} color="#059669" />
+          </div>
+          <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#1a0a06', marginBottom: '4px' }}>No outstanding debts</h3>
           <p style={{ fontSize: '13px', color: '#A7A68B' }}>All parishes are up to date</p>
         </div>
-      ) : (
-        yearGroups.map(({ year, rectory, national }) => (
-          <div key={year} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#1a0a06', paddingTop: '4px' }}>
-              Debtors {year}
-            </h2>
-
-            {rectory.length > 0 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <GroupHeading>Debtors: Rectory</GroupHeading>
-                {rectory.map((g, idx) => (
-                  <SectionCard
-                    key={`${year}-rectory-${g.month}`}
-                    sectionKey={`${year}-rectory-${g.month}`}
-                    letter={letterFor(idx)}
-                    title={`${g.monthName?.toUpperCase()} ${year}`}
-                    parishes={g.parishes}
-                    copiedKey={copiedKey}
-                    setCopiedKey={setCopiedKey}
-                  />
-                ))}
-              </div>
-            )}
-
-            {national.length > 0 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <GroupHeading>Debtors: National Collection</GroupHeading>
-                {national.map((g, idx) => (
-                  <SectionCard
-                    key={`${year}-national-${g.id}`}
-                    sectionKey={`${year}-national-${g.id}`}
-                    letter={letterFor(idx)}
-                    title={formatSectionTitle(g.name?.toUpperCase(), year)}
-                    parishes={g.parishes}
-                    copiedKey={copiedKey}
-                    setCopiedKey={setCopiedKey}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        ))
       )}
+
+      {/* Sections */}
+      {sections.map((section, i) => (
+        <TabularSection
+          key={i}
+          title={section.title}
+          subtitle={section.subtitle}
+          columns={section.columns}
+        />
+      ))}
     </div>
   );
 }
