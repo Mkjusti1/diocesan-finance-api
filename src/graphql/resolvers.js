@@ -17,6 +17,33 @@ const MONTH_NAMES = [
   'July', 'August', 'September', 'October', 'November', 'December'
 ];
 
+// ─── Collection Category Mapping ─────────────────────────────────────────────
+
+const CATEGORY_ORDER = [
+  'Rectory',
+  'National Collections',
+  'Harvest & Bazaar',
+  'Cathedraticum',
+  'Project Sunday',
+  'Seminary Collections',
+];
+
+const CATEGORY_MATCHERS = [
+  { name: 'Rectory', matchers: ['rectory'] },
+  { name: 'Harvest & Bazaar', matchers: ['harvest', 'bazaar'] },
+  { name: 'Cathedraticum', matchers: ['cathedraticum'] },
+  { name: 'Project Sunday', matchers: ['project sunday'] },
+  { name: 'Seminary Collections', matchers: ['bigard', 'ciwa', 'mina', 'seminary'] },
+];
+
+function getCollectionCategory(collectionName) {
+  const lower = collectionName.toLowerCase();
+  for (const cat of CATEGORY_MATCHERS) {
+    if (cat.matchers.some(m => lower.includes(m))) return cat.name;
+  }
+  return 'National Collections';
+}
+
 // ─── Auth Helpers ────────────────────────────────────────────────────────────
 
 function generateToken(user) {
@@ -391,7 +418,7 @@ export const resolvers = {
 
       const currentMonth = new Date().getMonth() + 1;
 
-      const [collected, parishes, reportedThisMonth, outstanding, recent, collectionSummaries] = await Promise.all([
+      const [collected, parishes, reportedThisMonth, outstanding, recent, collectionData] = await Promise.all([
         pool.query(
           `SELECT COALESCE(SUM(rli.amount), 0) as total
            FROM remittance_line_items rli
@@ -434,16 +461,33 @@ export const resolvers = {
         ),
       ]);
 
+      // Group individual collections into 6 major categories
+      const categoryTotals = {};
+      for (const cat of CATEGORY_ORDER) categoryTotals[cat] = 0;
+
+      for (const row of collectionData.rows) {
+        const category = getCollectionCategory(row.name);
+        categoryTotals[category] = (categoryTotals[category] || 0) + parseFloat(row.total);
+      }
+
+      const collectionSummaries = CATEGORY_ORDER.map((name, idx) => ({
+        collection: {
+          id: `cat-${idx}`,
+          name,
+          description: null,
+          isActive: true,
+          createdAt: new Date().toISOString(),
+        },
+        totalCollected: categoryTotals[name] || 0,
+      }));
+
       return {
         totalCollectedThisYear: parseFloat(collected.rows[0].total),
         totalParishes: parseInt(parishes.rows[0].count),
         parishesReportedThisMonth: parseInt(reportedThisMonth.rows[0].count),
         totalOutstanding: parseFloat(outstanding.rows[0].total),
         recentActivity: recent.rows.map(mapRemittanceRecord),
-        collectionSummaries: collectionSummaries.rows.map(row => ({
-          collection: mapCollection(row),
-          totalCollected: parseFloat(row.total),
-        })),
+        collectionSummaries,
       };
     },
 
