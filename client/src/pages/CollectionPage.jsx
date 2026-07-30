@@ -39,7 +39,6 @@ const GET_COLLECTION_DATA = gql`
   }
 `;
 
-// For national collections — fetch all years
 const GET_ALL_COLLECTION_DATA = gql`
   query AllCollectionData {
     parishes { id name }
@@ -66,7 +65,6 @@ export function CollectionPage({ title, collectionName, type = 'monthly' }) {
   const yearFromUrl = parseInt(searchParams.get('year')) || currentYear;
   const [selectedYear, setSelectedYear] = useState(yearFromUrl);
 
-  // Sync year to URL
   useEffect(() => {
     setSearchParams({ year: selectedYear }, { replace: true });
   }, [selectedYear]);
@@ -81,30 +79,22 @@ export function CollectionPage({ title, collectionName, type = 'monthly' }) {
   const parishes = data?.parishes || [];
   const sortedParishes = sortParishes(parishes);
   const sources = data?.remittanceSources || [];
-
-  // Find the matching source
   const source = sources.find(s =>
     s.name.toLowerCase().trim() === collectionName.toLowerCase().trim()
   );
-
-  // Filter records containing this collection
   const allRecords = data?.remittanceRecords || [];
 
   if (isAnnual) {
-    // National Collections: group by year, each record has month=0
-    // Show parish × year grid, or parish × collection type for one year
     const annualRecords = allRecords.filter(r =>
       r.month === 0 && r.lineItems?.some(li =>
         li.source.name.toLowerCase().trim() === collectionName.toLowerCase().trim()
       )
     );
 
-    // Get all national collection sources (those that appear in month=0 records)
     const nationalSources = sources.filter(s =>
       allRecords.some(r => r.month === 0 && r.lineItems?.some(li => li.source.id === s.id))
     );
 
-    // Build parish × year grid for THIS collection
     const yearSet = [...new Set(allRecords.filter(r => r.month === 0).map(r => r.year))].sort((a,b) => b-a);
     const grid = {};
     annualRecords.forEach(r => {
@@ -133,7 +123,6 @@ export function CollectionPage({ title, collectionName, type = 'monthly' }) {
 
         <ErrorBanner error={error} onRetry={refetch} />
 
-        {/* Summary card — centered Total Collected only */}
         <div style={{ display: 'flex', justifyContent: 'center' }}>
           <div style={{
             backgroundColor: 'white', borderRadius: '12px', border: '1px solid #F5E3D7',
@@ -144,7 +133,6 @@ export function CollectionPage({ title, collectionName, type = 'monthly' }) {
           </div>
         </div>
 
-        {/* Parish × Year table */}
         <div style={{ backgroundColor: 'white', borderRadius: '12px', border: '1px solid #F5E3D7', overflow: 'hidden' }}>
           <div style={{ padding: '16px 20px', borderBottom: '1px solid #F5E3D7', backgroundColor: '#FFF9F2' }}>
             <p style={{ fontSize: '13px', fontWeight: 700, color: '#8B4C39', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
@@ -155,7 +143,7 @@ export function CollectionPage({ title, collectionName, type = 'monthly' }) {
             <div style={{ padding: '60px', textAlign: 'center', fontSize: '13px', color: '#A7A68B' }}>Loading...</div>
           ) : !source ? (
             <div style={{ padding: '60px', textAlign: 'center' }}>
-              <p style={{ fontSize: '14px', fontWeight: 600, color: '#8B4C39', marginBottom: '8px' }}>No "{title}" data found</p>
+              <p style={{ fontSize: '14px', fontWeight: 600, color: '#8B4C39', marginBottom: '8px' }}>No &quot;{title}&quot; data found</p>
               <p style={{ fontSize: '13px', color: '#A7A68B' }}>Upload a National Collections file to see data here</p>
             </div>
           ) : (
@@ -164,7 +152,7 @@ export function CollectionPage({ title, collectionName, type = 'monthly' }) {
                 <thead>
                   <tr style={{ backgroundColor: '#FFF9F2', borderBottom: '2px solid #F5E3D7' }}>
                     <th style={{ textAlign: 'left', padding: '12px 20px', fontSize: '11px', fontWeight: 700, color: '#A7A68B', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>S/N</th>
-                    <th style={{ textAlign: 'left', padding: '12px 20px', fontSize: '11px', fontWeight: 700, color: '#A7A68B', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Parish</th>
+                    <th style={{ textAlign: 'left', padding: '12px 20px', fontSize: '11px', fontWeight: 700, color: '#A7A68B', textTransform: 'uppercase', whiteSpace: 'nowrap', position: 'sticky', left: 0, backgroundColor: '#FFF9F2', zIndex: 2, minWidth: '180px' }}>Parish</th>
                     {yearSet.map(y => (
                       <th key={y} style={{ textAlign: 'right', padding: '12px 16px', fontSize: '11px', fontWeight: 700, color: '#A7A68B', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{y}</th>
                     ))}
@@ -178,9 +166,9 @@ export function CollectionPage({ title, collectionName, type = 'monthly' }) {
                     return (
                       <tr key={parish.id} style={{ borderBottom: idx < sortedParishes.length - 1 ? '1px solid #F5E3D7' : 'none' }}
                         onMouseEnter={e => e.currentTarget.style.backgroundColor = '#FFF9F2'}
-                        onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
+                        onMouseLeave={e => e.currentTarget.style.backgroundColor = 'white'}>
                         <td style={{ padding: '11px 20px', fontSize: '13px', fontWeight: 600, color: '#A7A68B' }}>{idx + 1}</td>
-                        <td style={{ padding: '11px 20px', fontSize: '13px', fontWeight: 600, color: '#1a0a06', whiteSpace: 'nowrap', cursor: 'pointer' }}
+                        <td style={{ padding: '11px 20px', fontSize: '13px', fontWeight: 600, color: '#1a0a06', whiteSpace: 'nowrap', cursor: 'pointer', position: 'sticky', left: 0, backgroundColor: 'white', zIndex: 1 }}
                           onClick={() => navigate(`/parishes/${parish.id}`)}>
                           {parish.name}
                         </td>
@@ -199,7 +187,7 @@ export function CollectionPage({ title, collectionName, type = 'monthly' }) {
                 <tfoot>
                   <tr style={{ backgroundColor: '#FFF9F2', borderTop: '2px solid #F5E3D7' }}>
                     <td style={{ padding: '12px 20px', fontSize: '12px', fontWeight: 700, color: '#8B4C39', textTransform: 'uppercase' }}></td>
-                    <td style={{ padding: '12px 20px', fontSize: '12px', fontWeight: 700, color: '#8B4C39', textTransform: 'uppercase' }}>Grand Total</td>
+                    <td style={{ padding: '12px 20px', fontSize: '12px', fontWeight: 700, color: '#8B4C39', textTransform: 'uppercase', position: 'sticky', left: 0, backgroundColor: '#FFF9F2', zIndex: 1 }}>Grand Total</td>
                     {yearSet.map(y => {
                       const yearTotal = sortedParishes.reduce((sum, p) => sum + (grid[p.id]?.[y] || 0), 0);
                       return (
@@ -221,7 +209,6 @@ export function CollectionPage({ title, collectionName, type = 'monthly' }) {
     );
   }
 
-  // Monthly type (Rectory) — parish × month grid for selected year
   const monthlyRecords = allRecords.filter(r =>
     r.month >= 1 && r.month <= 12 &&
     r.lineItems?.some(li => li.source.name.toLowerCase().trim() === collectionName.toLowerCase().trim())
@@ -247,8 +234,6 @@ export function CollectionPage({ title, collectionName, type = 'monthly' }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-
-      {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#1a0a06', marginBottom: '4px' }}>{title}</h1>
@@ -265,7 +250,6 @@ export function CollectionPage({ title, collectionName, type = 'monthly' }) {
       </div>
 
       <ErrorBanner error={error} onRetry={refetch} />
-      {/* Summary card — centered Total Collected only */}
       <div style={{ display: 'flex', justifyContent: 'center' }}>
         <div style={{
           backgroundColor: 'white', borderRadius: '12px', border: '1px solid #F5E3D7',
@@ -276,7 +260,6 @@ export function CollectionPage({ title, collectionName, type = 'monthly' }) {
         </div>
       </div>
 
-      {/* Parish × Month table */}
       <div style={{ backgroundColor: 'white', borderRadius: '12px', border: '1px solid #F5E3D7', overflow: 'hidden' }}>
         <div style={{ padding: '16px 20px', borderBottom: '1px solid #F5E3D7', backgroundColor: '#FFF9F2' }}>
           <p style={{ fontSize: '13px', fontWeight: 700, color: '#8B4C39', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
@@ -288,8 +271,8 @@ export function CollectionPage({ title, collectionName, type = 'monthly' }) {
           <div style={{ padding: '60px', textAlign: 'center', fontSize: '13px', color: '#A7A68B' }}>Loading...</div>
         ) : !source ? (
           <div style={{ padding: '60px', textAlign: 'center' }}>
-            <p style={{ fontSize: '14px', fontWeight: 600, color: '#8B4C39', marginBottom: '8px' }}>No "{title}" collection found</p>
-            <p style={{ fontSize: '13px', color: '#A7A68B' }}>Upload a Rectory file with collection name "{collectionName}" to see data here</p>
+            <p style={{ fontSize: '14px', fontWeight: 600, color: '#8B4C39', marginBottom: '8px' }}>No &quot;{title}&quot; collection found</p>
+            <p style={{ fontSize: '13px', color: '#A7A68B' }}>Upload a Rectory file with collection name &quot;{collectionName}&quot; to see data here</p>
           </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
@@ -297,7 +280,7 @@ export function CollectionPage({ title, collectionName, type = 'monthly' }) {
               <thead>
                 <tr style={{ backgroundColor: '#FFF9F2', borderBottom: '2px solid #F5E3D7' }}>
                   <th style={{ textAlign: 'left', padding: '12px 20px', fontSize: '11px', fontWeight: 700, color: '#A7A68B', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>S/N</th>
-                  <th style={{ textAlign: 'left', padding: '12px 20px', fontSize: '11px', fontWeight: 700, color: '#A7A68B', textTransform: 'uppercase', whiteSpace: 'nowrap', position: 'sticky', left: 0, backgroundColor: '#FFF9F2' }}>Parish</th>
+                  <th style={{ textAlign: 'left', padding: '12px 20px', fontSize: '11px', fontWeight: 700, color: '#A7A68B', textTransform: 'uppercase', whiteSpace: 'nowrap', position: 'sticky', left: 0, backgroundColor: '#FFF9F2', zIndex: 2, minWidth: '180px' }}>Parish</th>
                   {MONTHS.map(m => (
                     <th key={m} style={{ textAlign: 'right', padding: '12px 10px', fontSize: '11px', fontWeight: 700, color: '#A7A68B', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{m}</th>
                   ))}
@@ -311,9 +294,9 @@ export function CollectionPage({ title, collectionName, type = 'monthly' }) {
                   return (
                     <tr key={parish.id} style={{ borderBottom: idx < sortedParishes.length - 1 ? '1px solid #F5E3D7' : 'none' }}
                       onMouseEnter={e => e.currentTarget.style.backgroundColor = '#FFF9F2'}
-                      onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
+                      onMouseLeave={e => e.currentTarget.style.backgroundColor = 'white'}>
                       <td style={{ padding: '11px 20px', fontSize: '13px', fontWeight: 600, color: '#A7A68B' }}>{idx + 1}</td>
-                      <td style={{ padding: '11px 20px', fontSize: '13px', fontWeight: 600, color: '#1a0a06', whiteSpace: 'nowrap', cursor: 'pointer', position: 'sticky', left: 0, backgroundColor: 'inherit' }}
+                      <td style={{ padding: '11px 20px', fontSize: '13px', fontWeight: 600, color: '#1a0a06', whiteSpace: 'nowrap', cursor: 'pointer', position: 'sticky', left: 0, backgroundColor: 'white', zIndex: 1 }}
                         onClick={() => navigate(`/parishes/${parish.id}?year=${selectedYear}`)}>
                         {parish.name}
                       </td>
@@ -335,7 +318,7 @@ export function CollectionPage({ title, collectionName, type = 'monthly' }) {
               <tfoot>
                 <tr style={{ backgroundColor: '#FFF9F2', borderTop: '2px solid #F5E3D7' }}>
                   <td style={{ padding: '12px 20px', fontSize: '12px', fontWeight: 700, color: '#8B4C39', textTransform: 'uppercase' }}></td>
-                  <td style={{ padding: '12px 20px', fontSize: '12px', fontWeight: 700, color: '#8B4C39', textTransform: 'uppercase' }}>Grand Total</td>
+                  <td style={{ padding: '12px 20px', fontSize: '12px', fontWeight: 700, color: '#8B4C39', textTransform: 'uppercase', position: 'sticky', left: 0, backgroundColor: '#FFF9F2', zIndex: 1 }}>Grand Total</td>
                   {MONTHS.map((_, i) => {
                     const monthTotal = sortedParishes.reduce((sum, p) => sum + (grid[p.id]?.[i + 1] || 0), 0);
                     return (

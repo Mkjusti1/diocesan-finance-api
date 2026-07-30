@@ -44,15 +44,12 @@ export function NationalCollectionsPage() {
   const allSources = data?.remittanceSources || [];
   const allRecords = data?.remittanceRecords || [];
 
-  // Get only annual records (month=0) for selected year
   const annualRecords = allRecords.filter(r => r.month === 0 && r.year === selectedYear);
 
-  // Get sources that appear in annual records
   const nationalSourceIds = new Set();
   annualRecords.forEach(r => r.lineItems?.forEach(li => nationalSourceIds.add(li.source.id)));
   const nationalSources = allSources.filter(s => nationalSourceIds.has(s.id));
 
-  // Build parish × collection grid
   const grid = {};
   annualRecords.forEach(r => {
     r.lineItems?.forEach(li => {
@@ -61,7 +58,6 @@ export function NationalCollectionsPage() {
     });
   });
 
-  // Totals
   const collectionTotals = {};
   nationalSources.forEach(s => {
     collectionTotals[s.id] = parishes.reduce((sum, p) => sum + (grid[p.id]?.[s.id] || 0), 0);
@@ -76,8 +72,6 @@ export function NationalCollectionsPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-
-      {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#1a0a06', marginBottom: '4px' }}>National Collections</h1>
@@ -93,7 +87,6 @@ export function NationalCollectionsPage() {
         </div>
       </div>
 
-      {/* Error banner */}
       {error && (
         <div style={{
           backgroundColor: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: '10px',
@@ -110,7 +103,6 @@ export function NationalCollectionsPage() {
         </div>
       )}
 
-      {/* Summary cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px' }}>
         {[
           { label: 'Grand Total', value: formatCurrency(grandTotal), color: '#D3542A' },
@@ -127,7 +119,6 @@ export function NationalCollectionsPage() {
         ))}
       </div>
 
-      {/* Collection totals summary */}
       {!loading && nationalSources.length > 0 && (
         <div style={{ backgroundColor: 'white', borderRadius: '12px', border: '1px solid #F5E3D7', overflow: 'hidden' }}>
           <div style={{ padding: '14px 20px', borderBottom: '1px solid #F5E3D7', backgroundColor: '#FFF9F2' }}>
@@ -146,7 +137,6 @@ export function NationalCollectionsPage() {
         </div>
       )}
 
-      {/* Parish × Collection table */}
       <div style={{ backgroundColor: 'white', borderRadius: '12px', border: '1px solid #F5E3D7', overflow: 'hidden' }}>
         <div style={{ padding: '14px 20px', borderBottom: '1px solid #F5E3D7', backgroundColor: '#FFF9F2' }}>
           <p style={{ fontSize: '13px', fontWeight: 700, color: '#8B4C39', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
@@ -167,7 +157,7 @@ export function NationalCollectionsPage() {
               <thead>
                 <tr style={{ backgroundColor: '#FFF9F2', borderBottom: '2px solid #F5E3D7' }}>
                   <th style={{ textAlign: 'left', padding: '10px 20px', fontSize: '11px', fontWeight: 700, color: '#A7A68B', textTransform: 'uppercase', whiteSpace: 'nowrap', minWidth: '60px' }}>S/N</th>
-                  <th style={{ textAlign: 'left', padding: '10px 20px', fontSize: '11px', fontWeight: 700, color: '#A7A68B', textTransform: 'uppercase', whiteSpace: 'nowrap', position: 'sticky', left: 0, backgroundColor: '#FFF9F2', minWidth: '180px' }}>
+                  <th style={{ textAlign: 'left', padding: '10px 20px', fontSize: '11px', fontWeight: 700, color: '#A7A68B', textTransform: 'uppercase', whiteSpace: 'nowrap', position: 'sticky', left: 0, backgroundColor: '#FFF9F2', zIndex: 2, minWidth: '180px' }}>
                     Parish
                   </th>
                   {nationalSources.map(s => (
@@ -186,10 +176,10 @@ export function NationalCollectionsPage() {
                     <tr key={parish.id}
                       style={{ borderBottom: idx < sortedParishes.length - 1 ? '1px solid #F5E3D7' : 'none' }}
                       onMouseEnter={e => e.currentTarget.style.backgroundColor = '#FFF9F2'}
-                      onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                      onMouseLeave={e => e.currentTarget.style.backgroundColor = 'white'}
                     >
                       <td style={{ padding: '10px 20px', fontSize: '12px', fontWeight: 600, color: '#A7A68B' }}>{idx + 1}</td>
-                      <td style={{ padding: '10px 20px', fontSize: '12px', fontWeight: 600, color: '#1a0a06', whiteSpace: 'nowrap', cursor: 'pointer', position: 'sticky', left: 0, backgroundColor: 'inherit' }}
+                      <td style={{ padding: '10px 20px', fontSize: '12px', fontWeight: 600, color: '#1a0a06', whiteSpace: 'nowrap', cursor: 'pointer', position: 'sticky', left: 0, backgroundColor: 'white', zIndex: 1 }}
                         onClick={() => navigate(`/parishes/${parish.id}?year=${selectedYear}`)}>
                         {parish.name}
                       </td>
@@ -208,7 +198,7 @@ export function NationalCollectionsPage() {
               <tfoot>
                 <tr style={{ backgroundColor: '#FFF9F2', borderTop: '2px solid #F5E3D7' }}>
                   <td style={{ padding: '10px 20px', fontSize: '11px', fontWeight: 700, color: '#8B4C39', textTransform: 'uppercase' }}></td>
-                  <td style={{ padding: '10px 20px', fontSize: '11px', fontWeight: 700, color: '#8B4C39', textTransform: 'uppercase', position: 'sticky', left: 0, backgroundColor: '#FFF9F2' }}>
+                  <td style={{ padding: '10px 20px', fontSize: '11px', fontWeight: 700, color: '#8B4C39', textTransform: 'uppercase', position: 'sticky', left: 0, backgroundColor: '#FFF9F2', zIndex: 1 }}>
                     Total
                   </td>
                   {nationalSources.map(s => (
