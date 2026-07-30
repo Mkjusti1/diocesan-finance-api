@@ -146,4 +146,4 @@ LEFT JOIN remittance_records rr ON p.id = rr.parish_id
   AND rr.year = EXTRACT(YEAR FROM CURRENT_DATE)
   AND rr.month = EXTRACT(MONTH FROM CURRENT_DATE)
 WHERE c.is_active = true
-ORDER BY p.name, c.name;
+ORDER BY CASE WHEN p.name = 'Aguleri: St. Joseph' THEN 0 ELSE 1 END, p.name, c.name;
