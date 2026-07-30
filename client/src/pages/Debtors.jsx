@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@apollo/client/react';
 import { gql } from '@apollo/client';
 import { AlertCircle, CheckCircle, RefreshCw, Loader2 } from 'lucide-react';
@@ -220,9 +220,14 @@ export function Debtors() {
   const [confirming, setConfirming] = useState(false);
 
   const { data, loading, error, refetch } = useQuery(GET_DEBTORS, {
-    variables: { overdueOnly: true },
+    variables: { year, overdueOnly: true },
     fetchPolicy: 'network-only',
   });
+
+  // Refetch when year changes
+  useEffect(() => {
+    refetch({ year, overdueOnly: true });
+  }, [year, refetch]);
 
   const [regenerate, { data: regenData, error: regenError }] = useMutation(REGENERATE_DEBTORS);
 
@@ -231,8 +236,8 @@ export function Debtors() {
   const totalOutstanding = debtors.filter(d => !d.isPaid).length;
 
   const handleRegenerate = async () => {
-    await regenerate();
-    await refetch();
+    await regenerate({ variables: { year } });
+    await refetch({ year, overdueOnly: true });
     setConfirming(false);
   };
 
@@ -378,7 +383,7 @@ export function Debtors() {
           <AlertCircle size={18} color="#dc2626" style={{ flexShrink: 0, marginTop: '1px' }} />
           <div>
             <p style={{ fontSize: '13px', fontWeight: 700, color: '#dc2626', marginBottom: '2px' }}>
-              Couldn't load debtors
+              Couldn&apos;t load debtors
             </p>
             <p style={{ fontSize: '12px', color: '#dc2626' }}>
               {(error.message || '').includes('timeout') ? 'Server is warming up — please retry.' : (error.message || 'Failed to fetch')}

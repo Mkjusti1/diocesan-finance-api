@@ -8,3 +8,12 @@ export function formatDate(dateString) {
   if (!dateString) return '—';
   return new Date(dateString).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' });
 }
+
+// Add this to the bottom of client/src/lib/utils.js
+export function sortParishesWithCathedralFirst(parishes) {
+  return [...parishes].sort((a, b) => {
+    if (a.name === 'Aguleri: St. Joseph') return -1;
+    if (b.name === 'Aguleri: St. Joseph') return 1;
+    return a.name.localeCompare(b.name);
+  });
+}
