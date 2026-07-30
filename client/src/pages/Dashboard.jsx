@@ -95,7 +95,8 @@ export function Dashboard() {
             border: '1px solid #F5E3D7',
             borderLeft: '4px solid #C89B6E',
             padding: '20px 24px',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
+            boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+            textAlign: 'center'
           }}>
             <p style={{
               fontSize: '11px', fontWeight: 600, color: '#A7A68B',
