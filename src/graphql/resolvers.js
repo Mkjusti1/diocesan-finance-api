@@ -20,8 +20,6 @@ const MONTH_NAMES = [
 // ─── Auth Helpers ────────────────────────────────────────────────────────────
 
 function generateToken(user) {
-  // Priests get 1-year sessions (they use static tokens, re-login is burdensome)
-  // Admin/Bishop get 7-day sessions
   const expiresIn = user.role === 'PRIEST' ? '365d' : '7d';
   return jwt.sign(
     { id: user.id, email: user.email, role: user.role, parishId: user.parish_id },
@@ -29,7 +27,6 @@ function generateToken(user) {
     { expiresIn }
   );
 }
-
 
 function validatePassword(password) {
   if (!password || password.length < 8) {
@@ -68,7 +65,6 @@ function mapUser(row) {
     parishId: row.parish_id,
     priestToken: row.priest_token || null,
     createdAt: row.created_at?.toISOString(),
-    // Pre-resolved parish if available from JOIN
     _parish: row.parish_name ? { id: row.parish_id, name: row.parish_name } : null,
   };
 }
@@ -107,7 +103,6 @@ function mapRemittanceRecord(row) {
     totalAmount: parseFloat(row.total_amount || 0),
     notes: row.notes,
     createdAt: row.created_at?.toISOString(),
-    // resolved by field resolvers:
     _parishId: row.parish_id,
     _uploadedById: row.uploaded_by,
   };
@@ -162,7 +157,7 @@ export const resolvers = {
       if (parent._lineItems !== undefined) return parent._lineItems;
       const { rows } = await pool.query(
         `SELECT rli.*, c.name as collection_name, c.description as collection_description,
-                c.is_active as collection_is_active, c.created_at as collection_created_at
+         c.is_active as collection_is_active, c.created_at as collection_created_at
          FROM remittance_line_items rli
          JOIN collections c ON rli.collection_id = c.id
          WHERE rli.remittance_record_id = $1`,
@@ -213,7 +208,6 @@ export const resolvers = {
       return mapUser(rows[0]);
     },
 
-    // Parishes
     parishes: async (_, __, { user }) => {
       requireAuth(user);
       const { rows } = await pool.query('SELECT * FROM parishes ORDER BY name');
@@ -222,7 +216,6 @@ export const resolvers = {
 
     parish: async (_, { id }, { user }) => {
       requireAuth(user);
-      // PRIEST can only view their own parish — force to their parish
       if (user.role === 'PRIEST') {
         if (user.parishId !== parseInt(id)) {
           throw new Error('FORBIDDEN: You can only view your own parish');
@@ -232,7 +225,6 @@ export const resolvers = {
       return mapParish(rows[0]);
     },
 
-    // Collections (remittance sources)
     remittanceSources: async (_, __, { user }) => {
       requireAuth(user);
       const { rows } = await pool.query(
@@ -241,22 +233,19 @@ export const resolvers = {
       return rows.map(mapCollection);
     },
 
-    // Remittance Records
     remittanceRecords: async (_, { year, month, parishId }, { user }) => {
       requireAuth(user);
 
-      // PRIEST is always forced to their own parish — ignore any parishId argument
       if (user.role === 'PRIEST') {
         if (!user.parishId) throw new Error('No parish assigned to your account');
         parishId = user.parishId;
-        // Remove year/month filters so they see ALL years and months
         year = undefined;
         month = undefined;
       }
 
       let query = `
         SELECT rr.*,
-               COALESCE(SUM(rli.amount), 0) as total_amount
+        COALESCE(SUM(rli.amount), 0) as total_amount
         FROM remittance_records rr
         LEFT JOIN remittance_line_items rli ON rr.id = rli.remittance_record_id
         WHERE 1=1
@@ -273,8 +262,6 @@ export const resolvers = {
       const records = rows.map(mapRemittanceRecord);
       if (records.length === 0) return records;
 
-      // Batch-fetch parishes and line items in 2 queries instead of
-      // letting the per-record field resolvers above fire N+1 queries.
       const parishIds = [...new Set(records.map(r => r._parishId))];
       const recordIds = records.map(r => r.id);
 
@@ -282,8 +269,8 @@ export const resolvers = {
         pool.query('SELECT * FROM parishes WHERE id = ANY($1)', [parishIds]),
         pool.query(
           `SELECT rli.*, rli.remittance_record_id, c.name as collection_name,
-                  c.description as collection_description,
-                  c.is_active as collection_is_active, c.created_at as collection_created_at
+           c.description as collection_description,
+           c.is_active as collection_is_active, c.created_at as collection_created_at
            FROM remittance_line_items rli
            JOIN collections c ON rli.collection_id = c.id
            WHERE rli.remittance_record_id = ANY($1)`,
@@ -331,7 +318,6 @@ export const resolvers = {
       );
       if (!rows[0]) return null;
 
-      // PRIEST guard
       if (user.role === 'PRIEST' && rows[0].parish_id !== user.parishId) {
         throw new Error('FORBIDDEN: You can only view your own parish records');
       }
@@ -358,7 +344,6 @@ export const resolvers = {
       return rows.map(mapRemittanceRecord);
     },
 
-    // Debtors
     debtors: async (_, { year, overdueOnly }, { user }) => {
       requireRole(user, 'ADMIN', 'BISHOP');
 
@@ -374,8 +359,6 @@ export const resolvers = {
       const debtorRows = rows.map(mapDebtor);
       if (debtorRows.length === 0) return debtorRows;
 
-      // Batch-fetch parishes in 1 query instead of letting the Debtor.parish
-      // field resolver below fire one query per row (was N+1, up to 20k+ queries).
       const parishIds = [...new Set(debtorRows.map(d => d._parishId))];
       const { rows: parishRows } = await pool.query('SELECT * FROM parishes WHERE id = ANY($1)', [parishIds]);
       const parishById = {};
@@ -408,7 +391,7 @@ export const resolvers = {
 
       const currentMonth = new Date().getMonth() + 1;
 
-      const [collected, parishes, reportedThisMonth, outstanding, recent] = await Promise.all([
+      const [collected, parishes, reportedThisMonth, outstanding, recent, collectionSummaries] = await Promise.all([
         pool.query(
           `SELECT COALESCE(SUM(rli.amount), 0) as total
            FROM remittance_line_items rli
@@ -439,6 +422,16 @@ export const resolvers = {
            LIMIT 5`,
           [year]
         ),
+        pool.query(
+          `SELECT c.id, c.name, c.description, c.is_active, c.created_at, COALESCE(SUM(rli.amount), 0) as total
+           FROM collections c
+           LEFT JOIN remittance_line_items rli ON rli.collection_id = c.id
+           LEFT JOIN remittance_records rr ON rr.id = rli.remittance_record_id AND rr.year = $1
+           WHERE c.is_active = true
+           GROUP BY c.id, c.name, c.description, c.is_active, c.created_at
+           ORDER BY c.name`,
+          [year]
+        ),
       ]);
 
       return {
@@ -447,6 +440,10 @@ export const resolvers = {
         parishesReportedThisMonth: parseInt(reportedThisMonth.rows[0].count),
         totalOutstanding: parseFloat(outstanding.rows[0].total),
         recentActivity: recent.rows.map(mapRemittanceRecord),
+        collectionSummaries: collectionSummaries.rows.map(row => ({
+          collection: mapCollection(row),
+          totalCollected: parseFloat(row.total),
+        })),
       };
     },
 
@@ -455,8 +452,8 @@ export const resolvers = {
 
       const { rows } = await pool.query(
         `SELECT rr.month,
-                COALESCE(SUM(rli.amount), 0) as total_collected,
-                COUNT(DISTINCT rr.parish_id) as parish_count
+         COALESCE(SUM(rli.amount), 0) as total_collected,
+         COUNT(DISTINCT rr.parish_id) as parish_count
          FROM remittance_records rr
          LEFT JOIN remittance_line_items rli ON rr.id = rli.remittance_record_id
          WHERE rr.year = $1 AND rr.month BETWEEN 1 AND 12
@@ -478,16 +475,16 @@ export const resolvers = {
 
       const { rows } = await pool.query(
         `SELECT p.*,
-                COALESCE(SUM(rli.amount), 0) as total_collected,
-                COUNT(DISTINCT CASE WHEN rr.month BETWEEN 1 AND 12 THEN rr.month END) as months_reported,
-                MAX(rr.created_at) as last_reported,
-                COALESCE(SUM(d.balance), 0) as outstanding_balance
+         COALESCE(SUM(rli.amount), 0) as total_collected,
+         COUNT(DISTINCT CASE WHEN rr.month BETWEEN 1 AND 12 THEN rr.month END) as months_reported,
+         MAX(rr.created_at) as last_reported,
+         COALESCE(SUM(d.balance), 0) as outstanding_balance
          FROM parishes p
          LEFT JOIN remittance_records rr ON p.id = rr.parish_id AND rr.year = $1
          LEFT JOIN remittance_line_items rli ON rr.id = rli.remittance_record_id
          LEFT JOIN debtors d ON p.id = d.parish_id AND d.year = $1 AND d.is_paid = false
          GROUP BY p.id
-         ORDER BY p.name`,
+         ORDER BY total_collected DESC`,
         [year]
       );
 
@@ -537,11 +534,9 @@ export const resolvers = {
 
   Mutation: {
 
-    // Auth
     login: async (_, { input }) => {
       const { email, password } = input;
 
-      // Try email/password login (ADMIN and BISHOP)
       const { rows } = await pool.query(
         'SELECT * FROM users WHERE email = $1 AND is_active = true',
         [email]
@@ -564,8 +559,6 @@ export const resolvers = {
       return { token, user: mapUser(dbUser) };
     },
 
-    // Admin-only: backfill/recalculate debtors for a year (or every year that
-    // has data, if no year given). Safe to run repeatedly — it upserts.
     regenerateDebtors: async (_, { year }, { user }) => {
       requireRole(user, 'ADMIN');
 
@@ -586,9 +579,6 @@ export const resolvers = {
       return { success: true, years };
     },
 
-    // Admin-only: create a priest login token for every parish that doesn't
-    // already have an active one. Uses the parish name as the account name.
-    // Safe to run repeatedly — parishes that already have a priest are skipped.
     generateAllPriestTokens: async (_, __, { user }) => {
       requireRole(user, 'ADMIN');
 
@@ -610,9 +600,9 @@ export const resolvers = {
       const { rows } = await pool.query(
         `SELECT * FROM users
          WHERE priest_token = $1
-           AND is_active = true
-           AND role = 'PRIEST'
-           AND (token_expires_at IS NULL OR token_expires_at > NOW())`,
+         AND is_active = true
+         AND role = 'PRIEST'
+         AND (token_expires_at IS NULL OR token_expires_at > NOW())`,
         [priestToken]
       );
 
@@ -645,12 +635,10 @@ export const resolvers = {
       return true;
     },
 
-    // Users
     createUser: async (_, { input }, { user }) => {
       requireRole(user, 'ADMIN');
       const { name, email, password, role, parishId } = input;
 
-      // Split name into first/last
       const parts = name.trim().split(' ');
       const firstName = parts[0];
       const lastName = parts.slice(1).join(' ') || '';
@@ -659,7 +647,6 @@ export const resolvers = {
       let priestToken = null;
 
       if (role === 'PRIEST') {
-        // Generate a random token for priest login
         const { randomBytes } = await import('crypto');
         priestToken = randomBytes(32).toString('hex');
       } else {
@@ -669,7 +656,7 @@ export const resolvers = {
 
       const { rows } = await pool.query(
         `INSERT INTO users (first_name, last_name, email, password_hash, priest_token,
-                            token_generated_by, role, parish_id)
+         token_generated_by, role, parish_id)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
          RETURNING *`,
         [firstName, lastName, email, passwordHash, priestToken,
@@ -681,7 +668,6 @@ export const resolvers = {
         name, email, role, parishId
       });
 
-      // Include priest token in response if just created
       const mapped = mapUser(newUser);
       if (priestToken) mapped.priestToken = priestToken;
       return mapped;
@@ -699,7 +685,6 @@ export const resolvers = {
       return true;
     },
 
-    // Parishes
     createParish: async (_, { input }, { user }) => {
       requireRole(user, 'ADMIN');
       const { name, location, diocese, contactEmail, contactPhone } = input;
@@ -735,7 +720,7 @@ export const resolvers = {
       const { rows } = await pool.query(
         `UPDATE parishes
          SET name = $1, location = $2, diocese = $3,
-             contact_email = $4, contact_phone = $5, updated_at = NOW()
+         contact_email = $4, contact_phone = $5, updated_at = NOW()
          WHERE id = $6
          RETURNING *`,
         [updated.name, updated.location, updated.diocese,
@@ -757,7 +742,6 @@ export const resolvers = {
       return true;
     },
 
-    // Collections (remittance sources)
     createRemittanceSource: async (_, { input }, { user }) => {
       requireRole(user, 'ADMIN');
       const { name, description } = input;
@@ -789,7 +773,6 @@ export const resolvers = {
       return mapCollection(rows[0]);
     },
 
-    // Remittance Records
     createRemittanceRecord: async (_, { input }, { user }) => {
       requireRole(user, 'ADMIN');
       const { parishId, year, month, lineItems } = input;
@@ -851,7 +834,6 @@ export const resolvers = {
       return true;
     },
 
-    // Debtors
     updateDebtor: async (_, { id, input }, { user }) => {
       requireRole(user, 'ADMIN');
 
@@ -867,7 +849,7 @@ export const resolvers = {
       const { rows } = await pool.query(
         `UPDATE debtors
          SET expected_amount = $1, actual_amount = $2, balance = $3,
-             is_paid = $4, notes = $5, updated_at = NOW()
+         is_paid = $4, notes = $5, updated_at = NOW()
          WHERE id = $6
          RETURNING *`,
         [expectedAmount, actualAmount, balance, isPaid, input.notes ?? prev.notes, id]
@@ -877,13 +859,6 @@ export const resolvers = {
       return mapDebtor(rows[0]);
     },
 
-    // Record a payment for one parish, for exactly one collection, in one period.
-    // - Finds or creates the parish's remittance_records row for that year/month
-    //   (one record per parish per period, holding many line items).
-    // - Upserts the line item for this specific collection (updates the amount
-    //   if a payment for this collection/period was already recorded).
-    // - Immediately syncs the matching debtors row so it drops off the Debtors
-    //   page without waiting for a full "Regenerate Debtors" run.
     recordPayment: async (_, { input }, { user }) => {
       requireRole(user, 'ADMIN');
       const { parishId, collectionId, year, month, amount } = input;
@@ -928,11 +903,11 @@ export const resolvers = {
            VALUES ($1, $2, $3, $4, $5, $5, 0, $6)
            ON CONFLICT (parish_id, collection_id, year, month)
            DO UPDATE SET
-             expected_amount = EXCLUDED.expected_amount,
-             actual_amount = EXCLUDED.actual_amount,
-             balance = 0,
-             is_paid = EXCLUDED.is_paid,
-             updated_at = NOW()
+           expected_amount = EXCLUDED.expected_amount,
+           actual_amount = EXCLUDED.actual_amount,
+           balance = 0,
+           is_paid = EXCLUDED.is_paid,
+           updated_at = NOW()
            RETURNING *`,
           [parishId, collectionId, year, month, amount, isPaid]
         );
@@ -976,7 +951,6 @@ export const resolvers = {
     markAsOverdue: async (_, { parishId, year, month }, { user }) => {
       requireRole(user, 'ADMIN');
 
-      // Upsert a debtor record marking this parish/month as unpaid
       const { rows } = await pool.query(
         `INSERT INTO debtors (parish_id, collection_id, year, month, expected_amount, actual_amount, balance, is_paid)
          VALUES ($1, 1, $2, $3, 0, 0, 0, false)
@@ -991,4 +965,3 @@ export const resolvers = {
     },
   },
 }
-

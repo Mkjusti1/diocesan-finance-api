@@ -111,12 +111,18 @@ export const typeDefs = gql`
     outstandingBalance: Float!
   }
 
+  type CollectionSummary {
+    collection: RemittanceSource!
+    totalCollected: Float!
+  }
+
   type DashboardStats {
     totalCollectedThisYear: Float!
     totalParishes: Int!
     parishesReportedThisMonth: Int!
     totalOutstanding: Float!
     recentActivity: [RemittanceRecord!]!
+    collectionSummaries: [CollectionSummary!]!
   }
 
   input LoginInput {
