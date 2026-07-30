@@ -7,6 +7,14 @@ import { formatCurrency } from '@/lib/utils';
 const currentYear = new Date().getFullYear();
 const YEARS = Array.from({ length: currentYear - 2022 }, (_, i) => currentYear - i);
 
+function sortParishSummaries(summaries) {
+  return [...summaries].sort((a, b) => {
+    if (a.parish.name === 'Aguleri: St. Joseph') return -1;
+    if (b.parish.name === 'Aguleri: St. Joseph') return 1;
+    return (b.totalCollected || 0) - (a.totalCollected || 0);
+  });
+}
+
 export function Dashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
   const yearFromUrl = parseInt(searchParams.get('year')) || currentYear;
@@ -36,8 +44,7 @@ export function Dashboard() {
 
   const stats = data?.dashboardStats;
   const parishSummaries = data?.parishSummaries || [];
-
-  const sortedParishSummaries = [...parishSummaries].sort((a, b) => (b.totalCollected || 0) - (a.totalCollected || 0));
+  const sortedParishSummaries = sortParishSummaries(parishSummaries);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
@@ -134,7 +141,7 @@ export function Dashboard() {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ backgroundColor: '#FFF9F2', borderBottom: '2px solid #F5E3D7' }}>
-                  {['Parish', 'Total Collected', 'Months Reported', 'Status'].map(h => (
+                  {['S/N', 'Parish', 'Total Collected', 'Months Reported', 'Status'].map(h => (
                     <th key={h} style={{
                       textAlign: 'left', padding: '12px 20px',
                       fontSize: '11px', fontWeight: 700, color: '#A7A68B',
@@ -150,6 +157,7 @@ export function Dashboard() {
                     onMouseEnter={e => e.currentTarget.style.backgroundColor = '#FFF9F2'}
                     onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
                   >
+                    <td style={{ padding: '12px 20px', fontSize: '13px', fontWeight: 600, color: '#A7A68B' }}>{idx + 1}</td>
                     <td style={{ padding: '12px 20px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <div style={{

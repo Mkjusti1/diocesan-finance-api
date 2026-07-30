@@ -19,6 +19,14 @@ const GET_NATIONAL_DATA = gql`
   }
 `;
 
+function sortParishes(parishes) {
+  return [...parishes].sort((a, b) => {
+    if (a.name === 'Aguleri: St. Joseph') return -1;
+    if (b.name === 'Aguleri: St. Joseph') return 1;
+    return a.name.localeCompare(b.name);
+  });
+}
+
 export function NationalCollectionsPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -32,6 +40,7 @@ export function NationalCollectionsPage() {
   const { data, loading, error, refetch } = useQuery(GET_NATIONAL_DATA, { errorPolicy: 'all' });
 
   const parishes = data?.parishes || [];
+  const sortedParishes = sortParishes(parishes);
   const allSources = data?.remittanceSources || [];
   const allRecords = data?.remittanceRecords || [];
 
@@ -157,6 +166,7 @@ export function NationalCollectionsPage() {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ backgroundColor: '#FFF9F2', borderBottom: '2px solid #F5E3D7' }}>
+                  <th style={{ textAlign: 'left', padding: '10px 20px', fontSize: '11px', fontWeight: 700, color: '#A7A68B', textTransform: 'uppercase', whiteSpace: 'nowrap', minWidth: '60px' }}>S/N</th>
                   <th style={{ textAlign: 'left', padding: '10px 20px', fontSize: '11px', fontWeight: 700, color: '#A7A68B', textTransform: 'uppercase', whiteSpace: 'nowrap', position: 'sticky', left: 0, backgroundColor: '#FFF9F2', minWidth: '180px' }}>
                     Parish
                   </th>
@@ -165,27 +175,26 @@ export function NationalCollectionsPage() {
                       {s.name}
                     </th>
                   ))}
-                  <th style={{ textAlign: 'right', padding: '10px 20px', fontSize: '11px', fontWeight: 700, color: '#8B4C39', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
-                    Total
-                  </th>
+                  <th style={{ textAlign: 'right', padding: '10px 20px', fontSize: '11px', fontWeight: 700, color: '#8B4C39', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Total</th>
                 </tr>
               </thead>
               <tbody>
-                {parishes.map((parish, idx) => {
+                {sortedParishes.map((parish, idx) => {
                   const parishData = grid[parish.id] || {};
                   const parishTotal = Object.values(parishData).reduce((s, v) => s + v, 0);
                   return (
                     <tr key={parish.id}
-                      style={{ borderBottom: idx < parishes.length - 1 ? '1px solid #F5E3D7' : 'none' }}
+                      style={{ borderBottom: idx < sortedParishes.length - 1 ? '1px solid #F5E3D7' : 'none' }}
                       onMouseEnter={e => e.currentTarget.style.backgroundColor = '#FFF9F2'}
                       onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
                     >
+                      <td style={{ padding: '10px 20px', fontSize: '12px', fontWeight: 600, color: '#A7A68B' }}>{idx + 1}</td>
                       <td style={{ padding: '10px 20px', fontSize: '12px', fontWeight: 600, color: '#1a0a06', whiteSpace: 'nowrap', cursor: 'pointer', position: 'sticky', left: 0, backgroundColor: 'inherit' }}
                         onClick={() => navigate(`/parishes/${parish.id}?year=${selectedYear}`)}>
                         {parish.name}
                       </td>
                       {nationalSources.map(s => (
-                        <td key={s.id} style={{ padding: '10px 12px', textAlign: 'right', fontSize: '12px', fontWeight: parishData[s.id] ? 700 : 400, color: parishData[s.id] ? '#8B4C39' : '#E5D5CD', whiteSpace: 'nowrap' }}>
+                        <td key={s.id} style={{ padding: '10px 12px', textAlign: 'right', fontSize: '12px', fontWeight: parishData[s.id] ? 700 : 400, color: parishData[s.id] ? '#8B4C39' : '#E1D5CD', whiteSpace: 'nowrap' }}>
                           {parishData[s.id] ? formatCurrency(parishData[s.id]) : '—'}
                         </td>
                       ))}
@@ -198,6 +207,7 @@ export function NationalCollectionsPage() {
               </tbody>
               <tfoot>
                 <tr style={{ backgroundColor: '#FFF9F2', borderTop: '2px solid #F5E3D7' }}>
+                  <td style={{ padding: '10px 20px', fontSize: '11px', fontWeight: 700, color: '#8B4C39', textTransform: 'uppercase' }}></td>
                   <td style={{ padding: '10px 20px', fontSize: '11px', fontWeight: 700, color: '#8B4C39', textTransform: 'uppercase', position: 'sticky', left: 0, backgroundColor: '#FFF9F2' }}>
                     Total
                   </td>

@@ -52,6 +52,14 @@ const GET_ALL_COLLECTION_DATA = gql`
   }
 `;
 
+function sortParishes(parishes) {
+  return [...parishes].sort((a, b) => {
+    if (a.name === 'Aguleri: St. Joseph') return -1;
+    if (b.name === 'Aguleri: St. Joseph') return 1;
+    return a.name.localeCompare(b.name);
+  });
+}
+
 export function CollectionPage({ title, collectionName, type = 'monthly' }) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -71,6 +79,7 @@ export function CollectionPage({ title, collectionName, type = 'monthly' }) {
   });
 
   const parishes = data?.parishes || [];
+  const sortedParishes = sortParishes(parishes);
   const sources = data?.remittanceSources || [];
 
   // Find the matching source
@@ -124,21 +133,15 @@ export function CollectionPage({ title, collectionName, type = 'monthly' }) {
 
         <ErrorBanner error={error} onRetry={refetch} />
 
-        {/* Summary cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px' }}>
-          {[
-            { label: 'Grand Total', value: formatCurrency(grandTotal), color: '#D3542A' },
-            { label: 'Parishes Paid', value: Object.keys(grid).length, color: '#C89B6E' },
-            { label: 'Parishes Missing', value: parishes.length - Object.keys(grid).length, color: '#A7A68B' },
-          ].map(({ label, value, color }) => (
-            <div key={label} style={{
-              backgroundColor: 'white', borderRadius: '12px', border: '1px solid #F5E3D7',
-              borderLeft: `4px solid ${color}`, padding: '18px 20px'
-            }}>
-              <p style={{ fontSize: '11px', fontWeight: 600, color: '#A7A68B', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>{label}</p>
-              <p style={{ fontSize: '22px', fontWeight: 700, color: '#1a0a06' }}>{value}</p>
-            </div>
-          ))}
+        {/* Summary card — centered Total Collected only */}
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
+          <div style={{
+            backgroundColor: 'white', borderRadius: '12px', border: '1px solid #F5E3D7',
+            borderLeft: '4px solid #D3542A', padding: '18px 20px', textAlign: 'center', minWidth: '240px'
+          }}>
+            <p style={{ fontSize: '11px', fontWeight: 600, color: '#A7A68B', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Grand Total</p>
+            <p style={{ fontSize: '22px', fontWeight: 700, color: '#1a0a06' }}>{formatCurrency(grandTotal)}</p>
+          </div>
         </div>
 
         {/* Parish × Year table */}
@@ -160,6 +163,7 @@ export function CollectionPage({ title, collectionName, type = 'monthly' }) {
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ backgroundColor: '#FFF9F2', borderBottom: '2px solid #F5E3D7' }}>
+                    <th style={{ textAlign: 'left', padding: '12px 20px', fontSize: '11px', fontWeight: 700, color: '#A7A68B', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>S/N</th>
                     <th style={{ textAlign: 'left', padding: '12px 20px', fontSize: '11px', fontWeight: 700, color: '#A7A68B', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Parish</th>
                     {yearSet.map(y => (
                       <th key={y} style={{ textAlign: 'right', padding: '12px 16px', fontSize: '11px', fontWeight: 700, color: '#A7A68B', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{y}</th>
@@ -168,19 +172,20 @@ export function CollectionPage({ title, collectionName, type = 'monthly' }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {parishes.map((parish, idx) => {
+                  {sortedParishes.map((parish, idx) => {
                     const yearData = grid[parish.id] || {};
                     const parishTotal = Object.values(yearData).reduce((s, v) => s + v, 0);
                     return (
-                      <tr key={parish.id} style={{ borderBottom: idx < parishes.length - 1 ? '1px solid #F5E3D7' : 'none' }}
+                      <tr key={parish.id} style={{ borderBottom: idx < sortedParishes.length - 1 ? '1px solid #F5E3D7' : 'none' }}
                         onMouseEnter={e => e.currentTarget.style.backgroundColor = '#FFF9F2'}
                         onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
+                        <td style={{ padding: '11px 20px', fontSize: '13px', fontWeight: 600, color: '#A7A68B' }}>{idx + 1}</td>
                         <td style={{ padding: '11px 20px', fontSize: '13px', fontWeight: 600, color: '#1a0a06', whiteSpace: 'nowrap', cursor: 'pointer' }}
                           onClick={() => navigate(`/parishes/${parish.id}`)}>
                           {parish.name}
                         </td>
                         {yearSet.map(y => (
-                          <td key={y} style={{ padding: '11px 16px', textAlign: 'right', fontSize: '13px', fontWeight: yearData[y] ? 700 : 400, color: yearData[y] ? '#8B4C39' : '#E5D5CD', whiteSpace: 'nowrap' }}>
+                          <td key={y} style={{ padding: '11px 16px', textAlign: 'right', fontSize: '13px', fontWeight: yearData[y] ? 700 : 400, color: yearData[y] ? '#8B4C39' : '#E1D5CD', whiteSpace: 'nowrap' }}>
                             {yearData[y] ? formatCurrency(yearData[y]) : '—'}
                           </td>
                         ))}
@@ -193,9 +198,10 @@ export function CollectionPage({ title, collectionName, type = 'monthly' }) {
                 </tbody>
                 <tfoot>
                   <tr style={{ backgroundColor: '#FFF9F2', borderTop: '2px solid #F5E3D7' }}>
+                    <td style={{ padding: '12px 20px', fontSize: '12px', fontWeight: 700, color: '#8B4C39', textTransform: 'uppercase' }}></td>
                     <td style={{ padding: '12px 20px', fontSize: '12px', fontWeight: 700, color: '#8B4C39', textTransform: 'uppercase' }}>Grand Total</td>
                     {yearSet.map(y => {
-                      const yearTotal = parishes.reduce((sum, p) => sum + (grid[p.id]?.[y] || 0), 0);
+                      const yearTotal = sortedParishes.reduce((sum, p) => sum + (grid[p.id]?.[y] || 0), 0);
                       return (
                         <td key={y} style={{ padding: '12px 16px', textAlign: 'right', fontSize: '13px', fontWeight: 700, color: yearTotal > 0 ? '#D3542A' : '#A7A68B', whiteSpace: 'nowrap' }}>
                           {yearTotal > 0 ? formatCurrency(yearTotal) : '—'}
@@ -259,21 +265,15 @@ export function CollectionPage({ title, collectionName, type = 'monthly' }) {
       </div>
 
       <ErrorBanner error={error} onRetry={refetch} />
-      {/* Summary cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px' }}>
-        {[
-          { label: 'Total Collected', value: formatCurrency(grandTotal), color: '#D3542A' },
-          { label: 'Parishes Paid', value: Object.keys(grid).length, color: '#C89B6E' },
-          { label: 'Parishes Missing', value: parishes.length - Object.keys(grid).length, color: '#A7A68B' },
-        ].map(({ label, value, color }) => (
-          <div key={label} style={{
-            backgroundColor: 'white', borderRadius: '12px', border: '1px solid #F5E3D7',
-            borderLeft: `4px solid ${color}`, padding: '18px 20px'
-          }}>
-            <p style={{ fontSize: '11px', fontWeight: 600, color: '#A7A68B', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>{label}</p>
-            <p style={{ fontSize: '22px', fontWeight: 700, color: '#1a0a06' }}>{value}</p>
-          </div>
-        ))}
+      {/* Summary card — centered Total Collected only */}
+      <div style={{ display: 'flex', justifyContent: 'center' }}>
+        <div style={{
+          backgroundColor: 'white', borderRadius: '12px', border: '1px solid #F5E3D7',
+          borderLeft: '4px solid #D3542A', padding: '18px 20px', textAlign: 'center', minWidth: '240px'
+        }}>
+          <p style={{ fontSize: '11px', fontWeight: 600, color: '#A7A68B', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Total Collected</p>
+          <p style={{ fontSize: '22px', fontWeight: 700, color: '#1a0a06' }}>{formatCurrency(grandTotal)}</p>
+        </div>
       </div>
 
       {/* Parish × Month table */}
@@ -296,6 +296,7 @@ export function CollectionPage({ title, collectionName, type = 'monthly' }) {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ backgroundColor: '#FFF9F2', borderBottom: '2px solid #F5E3D7' }}>
+                  <th style={{ textAlign: 'left', padding: '12px 20px', fontSize: '11px', fontWeight: 700, color: '#A7A68B', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>S/N</th>
                   <th style={{ textAlign: 'left', padding: '12px 20px', fontSize: '11px', fontWeight: 700, color: '#A7A68B', textTransform: 'uppercase', whiteSpace: 'nowrap', position: 'sticky', left: 0, backgroundColor: '#FFF9F2' }}>Parish</th>
                   {MONTHS.map(m => (
                     <th key={m} style={{ textAlign: 'right', padding: '12px 10px', fontSize: '11px', fontWeight: 700, color: '#A7A68B', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{m}</th>
@@ -304,13 +305,14 @@ export function CollectionPage({ title, collectionName, type = 'monthly' }) {
                 </tr>
               </thead>
               <tbody>
-                {parishes.map((parish, idx) => {
+                {sortedParishes.map((parish, idx) => {
                   const monthData = grid[parish.id] || {};
                   const parishTotal = Object.values(monthData).reduce((s, v) => s + v, 0);
                   return (
-                    <tr key={parish.id} style={{ borderBottom: idx < parishes.length - 1 ? '1px solid #F5E3D7' : 'none' }}
+                    <tr key={parish.id} style={{ borderBottom: idx < sortedParishes.length - 1 ? '1px solid #F5E3D7' : 'none' }}
                       onMouseEnter={e => e.currentTarget.style.backgroundColor = '#FFF9F2'}
                       onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
+                      <td style={{ padding: '11px 20px', fontSize: '13px', fontWeight: 600, color: '#A7A68B' }}>{idx + 1}</td>
                       <td style={{ padding: '11px 20px', fontSize: '13px', fontWeight: 600, color: '#1a0a06', whiteSpace: 'nowrap', cursor: 'pointer', position: 'sticky', left: 0, backgroundColor: 'inherit' }}
                         onClick={() => navigate(`/parishes/${parish.id}?year=${selectedYear}`)}>
                         {parish.name}
@@ -318,7 +320,7 @@ export function CollectionPage({ title, collectionName, type = 'monthly' }) {
                       {MONTHS.map((_, i) => {
                         const amount = monthData[i + 1];
                         return (
-                          <td key={i} style={{ padding: '11px 10px', textAlign: 'right', fontSize: '12px', fontWeight: amount ? 700 : 400, color: amount ? '#8B4C39' : '#E5D5CD', whiteSpace: 'nowrap' }}>
+                          <td key={i} style={{ padding: '11px 10px', textAlign: 'right', fontSize: '12px', fontWeight: amount ? 700 : 400, color: amount ? '#8B4C39' : '#E1D5CD', whiteSpace: 'nowrap' }}>
                             {amount ? formatCurrency(amount) : '—'}
                           </td>
                         );
@@ -332,9 +334,10 @@ export function CollectionPage({ title, collectionName, type = 'monthly' }) {
               </tbody>
               <tfoot>
                 <tr style={{ backgroundColor: '#FFF9F2', borderTop: '2px solid #F5E3D7' }}>
+                  <td style={{ padding: '12px 20px', fontSize: '12px', fontWeight: 700, color: '#8B4C39', textTransform: 'uppercase' }}></td>
                   <td style={{ padding: '12px 20px', fontSize: '12px', fontWeight: 700, color: '#8B4C39', textTransform: 'uppercase' }}>Grand Total</td>
                   {MONTHS.map((_, i) => {
-                    const monthTotal = parishes.reduce((sum, p) => sum + (grid[p.id]?.[i + 1] || 0), 0);
+                    const monthTotal = sortedParishes.reduce((sum, p) => sum + (grid[p.id]?.[i + 1] || 0), 0);
                     return (
                       <td key={i} style={{ padding: '12px 10px', textAlign: 'right', fontSize: '12px', fontWeight: 700, color: monthTotal > 0 ? '#D3542A' : '#A7A68B', whiteSpace: 'nowrap' }}>
                         {monthTotal > 0 ? formatCurrency(monthTotal) : '—'}
