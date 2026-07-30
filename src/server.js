@@ -498,13 +498,13 @@ async function startServer() {
     console.log('✓ Apollo Server started');
 
     // Mount Apollo middleware
-    apolloServer.applyMiddleware({ app });
+apolloServer.applyMiddleware({ app, cors: false });
 
     // Start Express server
     const server = app.listen(PORT, "0.0.0.0", () => {
       console.log(`
 ╔═══════════════════════════════════════════════╗
-║  🚀 Diocesan Finance API Server Ready!       ║
+║  🚀 Diocesan Finance API Server Ready!        ║
 ╚═══════════════════════════════════════════════╝
 
 📊 Environment: ${NODE_ENV}
