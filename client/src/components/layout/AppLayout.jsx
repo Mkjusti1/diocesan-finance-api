@@ -11,6 +11,7 @@ export function AppLayout() {
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -27,7 +28,12 @@ export function AppLayout() {
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#FFF9F2', overflow: 'hidden', maxWidth: '100vw' }}>
 
       {/* Desktop sidebar */}
-      {!isMobile && <Sidebar />}
+      {!isMobile && (
+        <Sidebar
+          collapsed={sidebarCollapsed}
+          onToggle={() => setSidebarCollapsed(c => !c)}
+        />
+      )}
 
       {/* Mobile sidebar drawer */}
       {isMobile && <MobileSidebar open={menuOpen} onClose={() => setMenuOpen(false)} />}
