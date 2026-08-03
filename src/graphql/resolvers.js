@@ -328,55 +328,82 @@ export const resolvers = {
       return mapRemittanceRecord(rows[0]);
     },
 
-    debtors: async (_, { year, month, overdueOnly }, { user }) => {
+        debtors: async (_, { year, month, overdueOnly }, { user }) => {
       requireRole(user, 'ADMIN', 'BISHOP');
 
-      let query = 'SELECT * FROM debtors WHERE 1=1';
+      // Single optimized query with JOINs — no N+1
+      let query = `
+        SELECT
+          d.id, d.year, d.month, d.expected_amount, d.actual_amount,
+          d.balance, d.is_paid, d.notes, d.updated_at,
+          d.parish_id, d.collection_id,
+          p.id as p_id, p.name as p_name, p.diocese as p_diocese,
+          p.location as p_location, p.contact_email as p_contact_email,
+          p.contact_phone as p_contact_phone, p.created_year as p_created_year,
+          p.created_at as p_created_at,
+          c.id as c_id, c.name as c_name, c.description as c_description,
+          c.is_active as c_is_active, c.created_at as c_created_at
+        FROM debtors d
+        LEFT JOIN parishes p ON d.parish_id = p.id
+        LEFT JOIN collections c ON d.collection_id = c.id
+        WHERE 1=1
+      `;
       const params = [];
 
-      if (year) { params.push(year); query += ` AND year = $${params.length}`; }
-      if (month !== undefined && month !== null) { params.push(month); query += ` AND month = $${params.length}`; }
-      if (overdueOnly) { query += ' AND is_paid = false'; }
+      if (year) { params.push(year); query += ` AND d.year = $${params.length}`; }
+      if (month !== undefined && month !== null) { params.push(month); query += ` AND d.month = $${params.length}`; }
+      if (overdueOnly) { query += ' AND d.is_paid = false'; }
 
-      query += ' ORDER BY year DESC, month DESC, parish_id';
+      query += ' ORDER BY d.year DESC, d.month DESC, p.name';
 
       const { rows } = await pool.query(query, params);
-      const debtorRows = rows.map(mapDebtor);
-      if (debtorRows.length === 0) return debtorRows;
 
-      // Batch load parishes
-      const parishIds = [...new Set(debtorRows.map(d => d._parishId))];
-      const [{ rows: parishRows }, { rows: collectionRows }] = await Promise.all([
-        pool.query('SELECT * FROM parishes WHERE id = ANY($1)', [parishIds]),
-        pool.query('SELECT * FROM collections WHERE id = ANY($1)', [[...new Set(debtorRows.map(d => d._collectionId).filter(Boolean))]]),
-      ]);
-
-      const parishById = {};
-      for (const row of parishRows) parishById[row.id] = mapParish(row);
-      for (const d of debtorRows) d._parishObj = parishById[d._parishId] || null;
-
-      const collectionById = {};
-      for (const row of collectionRows) collectionById[row.id] = mapCollection(row);
-      for (const d of debtorRows) d._collectionObj = collectionById[d._collectionId] || null;
-
-      // Robust cathedral sort
+      // Robust cathedral sort helper
       const isCathedral = (name) => {
-        const n = (name || '').toLowerCase().replace(/\./g, '');
+        const n = (name || '').toLowerCase().replace(/\\./g, '');
         return n.includes('aguleri') && n.includes('joseph');
       };
 
-      debtorRows.sort((a, b) => {
-        const aCat = isCathedral(a._parishObj?.name);
-        const bCat = isCathedral(b._parishObj?.name);
+      const result = rows.map(row => ({
+        id: row.id,
+        year: row.year,
+        month: row.month,
+        monthName: MONTH_NAMES[row.month],
+        expectedAmount: parseFloat(row.expected_amount || 0),
+        actualAmount: parseFloat(row.actual_amount || 0),
+        balance: parseFloat(row.balance || 0),
+        isPaid: row.is_paid,
+        notes: row.notes,
+        updatedAt: row.updated_at?.toISOString(),
+        parish: row.p_id ? {
+          id: row.p_id,
+          name: row.p_name,
+          diocese: row.p_diocese,
+          location: row.p_location,
+          contactEmail: row.p_contact_email,
+          contactPhone: row.p_contact_phone,
+          createdYear: row.p_created_year || new Date(row.p_created_at).getFullYear(),
+          createdAt: row.p_created_at?.toISOString(),
+        } : null,
+        collection: row.c_id ? {
+          id: row.c_id,
+          name: row.c_name,
+          description: row.c_description,
+          isActive: row.c_is_active,
+          createdAt: row.c_created_at?.toISOString(),
+        } : null,
+      }));
+
+      result.sort((a, b) => {
+        const aCat = isCathedral(a.parish?.name);
+        const bCat = isCathedral(b.parish?.name);
         if (aCat && !bCat) return -1;
         if (!aCat && bCat) return 1;
-        return (a._parishObj?.name || '').localeCompare(b._parishObj?.name || '');
+        return (a.parish?.name || '').localeCompare(b.parish?.name || '');
       });
 
-      return debtorRows;
-    },
-
-    parishDebtors: async (_, { parishId, year }, { user }) => {
+      return result;
+    },\nparishDebtors: async (_, { parishId, year }, { user }) => {
       requireAuth(user);
 
       let query = 'SELECT * FROM debtors WHERE parish_id = $1';
