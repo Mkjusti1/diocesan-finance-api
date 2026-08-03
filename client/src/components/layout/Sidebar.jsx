@@ -5,7 +5,8 @@ import {
   Users, LogOut, UploadCloud, KeyRound,
   BookOpen, GraduationCap,
   Wheat, Landmark, HeartHandshake, Building2,
-  CreditCard, ChevronLeft, ChevronRight,\n  Table
+  CreditCard, ChevronLeft, ChevronRight,
+  Table
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import dioceseLogo from '@/assets/diocese-logo.jpg';
