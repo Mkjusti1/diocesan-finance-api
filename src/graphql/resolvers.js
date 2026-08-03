@@ -375,7 +375,9 @@ export const resolvers = {
         isPaid: row.is_paid,
         notes: row.notes,
         updatedAt: row.updated_at?.toISOString(),
-        parish: row.p_id ? {
+        _parishId: row.parish_id,
+        _collectionId: row.collection_id,
+        _parishObj: row.p_id ? {
           id: row.p_id,
           name: row.p_name,
           diocese: row.p_diocese,
@@ -385,7 +387,7 @@ export const resolvers = {
           createdYear: row.p_created_year || new Date(row.p_created_at).getFullYear(),
           createdAt: row.p_created_at?.toISOString(),
         } : null,
-        collection: row.c_id ? {
+        _collectionObj: row.c_id ? {
           id: row.c_id,
           name: row.c_name,
           description: row.c_description,
