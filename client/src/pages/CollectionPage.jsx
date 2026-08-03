@@ -102,7 +102,7 @@ export function CollectionPage({ title, collectionName, type = 'monthly' }) {
       allRecords.some(r => r.month === 0 && r.lineItems?.some(li => li.source.id === s.id))
     );
 
-    const yearSet = [...new Set(allRecords.filter(r => r.month === 0).map(r => r.year))].sort((a,b) => b-a);
+    const yearSet = [...new Set(allRecords.filter(r => r.month === 0).map(r => r.year))].sort((a,b) => a-b);
     const grid = {};
     annualRecords.forEach(r => {
       const item = r.lineItems?.find(li => li.source.name.toLowerCase().trim() === collectionName.toLowerCase().trim());
