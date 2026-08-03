@@ -4,7 +4,7 @@ import {
   LayoutDashboard, ReceiptText, ShieldAlert,
   Users, LogOut, UploadCloud, KeyRound,
   BookOpen, GraduationCap,
-  Wheat, Landmark, HeartHandshake,
+  Wheat, Landmark, HeartHandshake, Building2,
   CreditCard, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
