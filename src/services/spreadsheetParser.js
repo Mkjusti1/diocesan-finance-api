@@ -99,8 +99,7 @@ export class SpreadsheetParser {
     });
   }
 
-  // Auto-create a parish if it doesn't exist. Also auto-creates a priest
-  // login token for it, using the parish name (matches manual creation).
+  // Auto-create a parish if it doesn't exist.
   async ensureParish(name, createdByUserId) {
     const trimmed = name.trim();
     const existing = await pool.query(
@@ -114,8 +113,6 @@ export class SpreadsheetParser {
       [trimmed, 'Catholic Diocese of Aguleri']
     );
     const parishId = inserted.rows[0].id;
-    const { ensurePriestTokenForParish } = await import('../utils/priestTokens.js');
-    await ensurePriestTokenForParish(parishId, trimmed, createdByUserId);
     return { id: parishId, created: true };
   }
 

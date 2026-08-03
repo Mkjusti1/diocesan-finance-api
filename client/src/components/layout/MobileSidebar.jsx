@@ -2,20 +2,26 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, ReceiptText, ShieldAlert,
   Users, LogOut, UploadCloud, KeyRound,
-  BookOpen, GraduationCap, X
+  BookOpen, GraduationCap, X,
+  Wheat, Landmark, HeartHandshake,
+  CreditCard
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import dioceseLogo from '@/assets/diocese-logo.jpg';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard', roles: ['ADMIN','BISHOP'] },
-  { to: '/rectory', icon: ReceiptText, label: 'Rectory', roles: ['ADMIN','BISHOP','PRIEST'] },
+  { to: '/rectory', icon: ReceiptText, label: 'Rectory', roles: ['ADMIN','BISHOP'] },
   { to: '/national-collections', icon: BookOpen, label: 'National Collections', roles: ['ADMIN','BISHOP'] },
+  { to: '/harvest-bazaar', icon: Wheat, label: 'Harvest & Bazaar', roles: ['ADMIN','BISHOP'] },
+  { to: '/cathedraticum', icon: Landmark, label: 'Cathedraticum', roles: ['ADMIN','BISHOP'] },
+  { to: '/project-sunday', icon: HeartHandshake, label: 'Project Sunday', roles: ['ADMIN','BISHOP'] },
   { to: '/seminary-collections', icon: GraduationCap, label: 'Seminary Collections', roles: ['ADMIN','BISHOP'] },
   { to: '/debtors', icon: ShieldAlert, label: 'Debtors', roles: ['ADMIN','BISHOP'] },
+  { to: '/record-payment', icon: CreditCard, label: 'Record Payment', roles: ['ADMIN'] },
   { to: '/upload', icon: UploadCloud, label: 'Upload', roles: ['ADMIN'] },
   { to: '/users', icon: Users, label: 'Users', roles: ['ADMIN'] },
-  { to: '/profile', icon: KeyRound, label: 'Profile', roles: ['ADMIN','BISHOP','PRIEST'] },
+  { to: '/profile', icon: KeyRound, label: 'Profile', roles: ['ADMIN','BISHOP'] },
 ];
 
 export function MobileSidebar({ open, onClose }) {
@@ -43,7 +49,7 @@ export function MobileSidebar({ open, onClose }) {
               style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #C89B6E' }} />
             <div>
               <p style={{ color: 'white', fontWeight: 900, fontSize: '13px', letterSpacing: '0.02em' }}>CADIAG FINANCE</p>
-              
+
             </div>
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.6)', padding: '4px' }}>

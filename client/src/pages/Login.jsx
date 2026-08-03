@@ -3,23 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { useMutation } from '@apollo/client/react';
 import { LOGIN } from '@/graphql/queries';
 import { useAuth } from '@/context/AuthContext';
-import { gql } from '@apollo/client/core';
 import dioceseLogo from '@/assets/diocese-logo.jpg';
-
-const LOGIN_WITH_TOKEN = gql`
-  mutation LoginWithToken($token: String!) {
-    loginWithToken(token: $token) {
-      token
-      user { id name email role parishId }
-    }
-  }
-`;
 
 export function Login() {
   const navigate = useNavigate();
   const { login } = useAuth();
-  const [mode, setMode] = useState('password');
-  const [form, setForm] = useState({ email: '', password: '', token: '' });
+  const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
@@ -29,32 +18,18 @@ export function Login() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const [loginMutation, { loading: loadingPassword }] = useMutation(LOGIN, {
+  const [loginMutation, { loading }] = useMutation(LOGIN, {
     onCompleted: ({ login: data }) => {
       login(data.token, data.user);
-      navigate(data.user.role === 'PRIEST' ? '/remittances' : '/');
+      navigate('/');
     },
     onError: (err) => setError(err.message),
   });
-
-  const [loginWithToken, { loading: loadingToken }] = useMutation(LOGIN_WITH_TOKEN, {
-    onCompleted: ({ loginWithToken: data }) => {
-      login(data.token, data.user);
-      navigate(data.user.role === 'PRIEST' ? '/remittances' : '/');
-    },
-    onError: (err) => setError(err.message),
-  });
-
-  const loading = loadingPassword || loadingToken;
 
   const handleSubmit = (e) => {
     e.preventDefault();
     setError('');
-    if (mode === 'password') {
-      loginMutation({ variables: { input: { email: form.email, password: form.password } } });
-    } else {
-      loginWithToken({ variables: { token: form.token } });
-    }
+    loginMutation({ variables: { input: { email: form.email, password: form.password } } });
   };
 
   const inputStyle = {
@@ -128,59 +103,23 @@ export function Login() {
             Sign in to your account to continue
           </p>
 
-          {/* Toggle */}
-          <div style={{
-            display: 'flex', backgroundColor: '#F5E3D7', borderRadius: '10px',
-            padding: '4px', marginBottom: '24px'
-          }}>
-            {[['password', 'Email & Password'], ['token', 'Priest Token']].map(([m, label]) => (
-              <button key={m} type="button" onClick={() => { setMode(m); setError(''); }}
-                style={{
-                  flex: 1, height: '36px', borderRadius: '7px', border: 'none',
-                  fontSize: '12px', fontWeight: 600, cursor: 'pointer',
-                  transition: 'all 0.15s',
-                  backgroundColor: mode === m ? 'white' : 'transparent',
-                  color: mode === m ? '#8B4C39' : '#A7A68B',
-                  boxShadow: mode === m ? '0 1px 4px rgba(0,0,0,0.1)' : 'none'
-                }}>
-                {label}
-              </button>
-            ))}
-          </div>
-
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {mode === 'password' ? (
-              <>
-                <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#3d1e12', marginBottom: '6px' }}>
-                    Email address
-                  </label>
-                  <input type="email" placeholder="admin@diocese.com" value={form.email}
-                    onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                    required style={inputStyle} />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#3d1e12', marginBottom: '6px' }}>
-                    Password
-                  </label>
-                  <input type="password" placeholder="••••••••" value={form.password}
-                    onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-                    required style={inputStyle} />
-                </div>
-              </>
-            ) : (
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#3d1e12', marginBottom: '6px' }}>
-                  One-time login token
-                </label>
-                <input type="text" placeholder="Paste your token here" value={form.token}
-                  onChange={e => setForm(f => ({ ...f, token: e.target.value }))}
-                  required style={{ ...inputStyle, fontFamily: 'monospace', fontSize: '12px' }} />
-                <p style={{ fontSize: '12px', color: '#A7A68B', marginTop: '6px' }}>
-                  Your token was provided by the diocesan admin
-                </p>
-              </div>
-            )}
+            <div>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#3d1e12', marginBottom: '6px' }}>
+                Email address
+              </label>
+              <input type="email" placeholder="admin@diocese.com" value={form.email}
+                onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                required style={inputStyle} />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#3d1e12', marginBottom: '6px' }}>
+                Password
+              </label>
+              <input type="password" placeholder="••••••••" value={form.password}
+                onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+                required style={inputStyle} />
+            </div>
 
             {error && (
               <div style={{

@@ -1,19 +1,16 @@
 -- Diocesan Finance Management Database Schema
 -- PostgreSQL
 
--- Users table (3 roles: ADMIN, BISHOP, PRIEST)
+-- Users table (2 roles: ADMIN, BISHOP)
 CREATE TABLE users (
   id SERIAL PRIMARY KEY,
   email VARCHAR(255),
   password_hash VARCHAR(255),
-  priest_token VARCHAR(255) UNIQUE,
-  token_generated_by INTEGER,
   first_name VARCHAR(100),
   last_name VARCHAR(100),
-  role VARCHAR(50) NOT NULL CHECK (role IN ('ADMIN', 'BISHOP', 'PRIEST')),
+  role VARCHAR(50) NOT NULL CHECK (role IN ('ADMIN', 'BISHOP')),
   parish_id INTEGER,
   is_active BOOLEAN DEFAULT true,
-  token_expires_at TIMESTAMP,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -112,7 +109,6 @@ CREATE TABLE audit_logs (
 
 -- Indexes for performance
 CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_users_priest_token ON users(priest_token);
 CREATE INDEX idx_users_role ON users(role);
 CREATE INDEX idx_remittance_records_parish_year_month ON remittance_records(parish_id, year, month);
 CREATE INDEX idx_remittance_line_items_record ON remittance_line_items(remittance_record_id);

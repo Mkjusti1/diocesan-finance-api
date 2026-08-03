@@ -4,7 +4,6 @@ import { useQuery } from '@apollo/client/react';
 import { gql } from '@apollo/client/core';
 import { ArrowLeft, Building2 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
-import { useAuth } from '@/context/AuthContext';
 
 const currentYear = new Date().getFullYear();
 const YEARS = Array.from({ length: currentYear - 2022 }, (_, i) => currentYear - i);
@@ -25,18 +24,13 @@ export function ParishDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { user } = useAuth();
   const yearFromUrl = parseInt(searchParams.get('year')) || currentYear;
-  const [selectedYear, setSelectedYear] = useState(user?.role === 'PRIEST' ? 0 : yearFromUrl);
+  const [selectedYear, setSelectedYear] = useState(yearFromUrl);
 
   // Sync year to URL so back navigation preserves it
   useEffect(() => {
     if (selectedYear) setSearchParams({ year: selectedYear }, { replace: true });
   }, [selectedYear]);
-
-  if (user?.role === 'PRIEST' && user?.parishId && parseInt(id) !== user.parishId) {
-    navigate(`/parishes/${user.parishId}`, { replace: true });
-  }
 
   const { data, loading } = useQuery(GET_PARISH_DETAIL, {
     variables: { id, year: selectedYear || undefined }

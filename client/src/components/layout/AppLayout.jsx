@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Outlet, Navigate, useLocation } from 'react-router-dom';
+import { Outlet, Navigate } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { MobileSidebar } from './MobileSidebar';
 import { useAuth } from '@/context/AuthContext';
@@ -7,10 +7,10 @@ import { Menu } from 'lucide-react';
 import dioceseLogo from '@/assets/diocese-logo.jpg';
 
 export function AppLayout() {
-  const { isAuthenticated, user } = useAuth();
-  const location = useLocation();
+  const { isAuthenticated } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -19,15 +19,17 @@ export function AppLayout() {
   }, []);
 
   if (!isAuthenticated) return <Navigate to="/login" replace />;
-  if (user?.role === 'PRIEST' && location.pathname === '/') {
-    return <Navigate to="/remittances" replace />;
-  }
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#FFF9F2', overflow: 'hidden', maxWidth: '100vw' }}>
 
       {/* Desktop sidebar */}
-      {!isMobile && <Sidebar />}
+      {!isMobile && (
+        <Sidebar
+          collapsed={sidebarCollapsed}
+          onToggle={() => setSidebarCollapsed(c => !c)}
+        />
+      )}
 
       {/* Mobile sidebar drawer */}
       {isMobile && <MobileSidebar open={menuOpen} onClose={() => setMenuOpen(false)} />}

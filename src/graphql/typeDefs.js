@@ -3,7 +3,7 @@ import { gql } from 'apollo-server-express';
 
 export const typeDefs = gql`
 
-  enum Role { ADMIN BISHOP PRIEST }
+  enum Role { ADMIN BISHOP }
 
   type User {
     id: ID!
@@ -12,7 +12,6 @@ export const typeDefs = gql`
     role: Role!
     parishId: ID
     parish: Parish
-    priestToken: String
     createdAt: String!
   }
 
@@ -88,12 +87,6 @@ export const typeDefs = gql`
   type RegenerateDebtorsPayload {
     success: Boolean!
     years: [Int!]!
-  }
-
-  type GenerateAllPriestTokensPayload {
-    created: Int!
-    skipped: Int!
-    total: Int!
   }
 
   type MonthlySummary {
@@ -194,7 +187,6 @@ export const typeDefs = gql`
     remittanceSources: [RemittanceSource!]!
     remittanceRecords(year: Int, month: Int, parishId: ID): [RemittanceRecord!]!
     remittanceRecord(id: ID!): RemittanceRecord
-    myParishRemittances(year: Int): [RemittanceRecord!]!
     debtors(year: Int, overdueOnly: Boolean): [Debtor!]!
     parishDebtors(parishId: ID!, year: Int): [Debtor!]!
     dashboardStats(year: Int!): DashboardStats!
@@ -206,9 +198,7 @@ export const typeDefs = gql`
 
   type Mutation {
     login(input: LoginInput!): AuthPayload!
-    loginWithToken(token: String!): AuthPayload!
     regenerateDebtors(year: Int): RegenerateDebtorsPayload!
-    generateAllPriestTokens: GenerateAllPriestTokensPayload!
     changePassword(currentPassword: String!, newPassword: String!): Boolean!
     createUser(input: CreateUserInput!): User!
     deleteUser(id: ID!): Boolean!
@@ -223,6 +213,5 @@ export const typeDefs = gql`
     recordPayment(input: RecordPaymentInput!): Debtor!
     markAsOverdue(parishId: ID!, year: Int!, month: Int!): Debtor!
     adminResetPassword(userId: ID!, newPassword: String!): Boolean!
-    regeneratePriestToken(userId: ID!): User!
   }
 `;

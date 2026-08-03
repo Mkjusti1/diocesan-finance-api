@@ -29,14 +29,11 @@ export function Remittances() {
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({ parishId: '', year: YEAR, month: '', lineItems: {} });
 
-  // Priests are automatically scoped to their own parish
-  const effectiveParishId = user?.role === 'PRIEST' ? user.parishId : filters.parishId || undefined;
-
   const { data, loading } = useQuery(GET_REMITTANCE_RECORDS, {
     variables: {
       year: filters.year || undefined,
       month: filters.month ? parseInt(filters.month) : undefined,
-      parishId: effectiveParishId ? String(effectiveParishId) : undefined
+      parishId: filters.parishId || undefined
     }
   });
   const { data: parishData } = useQuery(GET_PARISHES);
@@ -65,22 +62,12 @@ export function Remittances() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
           <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#1a0a06', marginBottom: '4px' }}>
-            {user?.role === 'PRIEST' ? 'My Parish Remittances' : 'Remittances'}
+            Remittances
           </h1>
           <p style={{ fontSize: '13px', color: '#A7A68B' }}>
             {loading ? 'Loading...' : `${records.length} record${records.length !== 1 ? 's' : ''} found`}
           </p>
         </div>
-        {user?.role === 'PRIEST' && user?.parishId && (
-          <button onClick={() => navigate(`/parishes/${user.parishId}`)} style={{
-            display: 'flex', alignItems: 'center', gap: '6px',
-            height: '40px', padding: '0 16px', borderRadius: '8px',
-            backgroundColor: '#8B4C39', color: 'white',
-            border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 600
-          }}>
-            View My Parish
-          </button>
-        )}
         {isAdmin && (
           <button onClick={() => setModal(true)} style={{
             display: 'flex', alignItems: 'center', gap: '6px',
@@ -93,8 +80,8 @@ export function Remittances() {
         )}
       </div>
 
-      {/* Filters — hidden for priests */}
-      {user?.role !== 'PRIEST' && <div style={{
+      {/* Filters */}
+      {<div style={{
         display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap',
         padding: '16px 20px', borderRadius: '10px',
         backgroundColor: 'white', border: '1px solid #F5E3D7'

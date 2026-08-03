@@ -515,7 +515,6 @@ apolloServer.applyMiddleware({ app, cors: false });
 Roles Implemented:
   • ADMIN - Full access (login with email/password)
   • BISHOP - Read-only dashboards (login with email/password)
-  • PRIEST - Own parish only (login with token)
 
 📖 Documentation:
   • Quick Start: See QUICK-START.md
