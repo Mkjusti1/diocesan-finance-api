@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { GET_REMITTANCE_RECORDS, GET_PARISHES, GET_REMITTANCE_SOURCES, CREATE_REMITTANCE } from '@/graphql/queries';
 import { formatCurrency } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
+import BulkDeleteRecords from '../components/BulkDeleteRecords';
 
 const YEAR = new Date().getFullYear();
 const MONTHS = ['','January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -202,6 +203,8 @@ export function Remittances() {
           </div>
         )}
       </div>
+
+      <BulkDeleteRecords />
 
       {/* Modal */}
       {modal && (

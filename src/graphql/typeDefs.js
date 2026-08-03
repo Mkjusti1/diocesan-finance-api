@@ -180,7 +180,13 @@ export const typeDefs = gql`
     amount: Float!
   }
 
-  type Query {
+  type BulkDeleteResult {
+ success: Boolean!
+ deletedCount: Int!
+ message: String!
+ }
+
+ type Query {
     me: User
     parishes: [Parish!]!
     parish(id: ID!): Parish
@@ -213,5 +219,6 @@ export const typeDefs = gql`
     recordPayment(input: RecordPaymentInput!): Debtor!
     markAsOverdue(parishId: ID!, year: Int!, month: Int!): Debtor!
     adminResetPassword(userId: ID!, newPassword: String!): Boolean!
+ deleteRemittanceRecordsByParishAndYear(parishId: ID!, year: Int!): BulkDeleteResult!
   }
 `;

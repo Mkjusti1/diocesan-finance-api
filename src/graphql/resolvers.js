@@ -782,6 +782,53 @@ export const resolvers = {
       await logAuditEvent(user.id, 'DELETE_REMITTANCE', 'remittance_records', id, rows[0], null);
       return true;
     },
+    deleteRemittanceRecordsByParishAndYear: async (_, { parishId, year }, { user }) => {
+      requireRole(user, 'ADMIN');
+
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+
+        const { rows: recordsToDelete } = await client.query(
+          'SELECT id FROM remittance_records WHERE parish_id = $1 AND year = $2',
+          [parishId, year]
+        );
+
+        if (recordsToDelete.length === 0) {
+          throw new Error('No remittance records found for this parish and year');
+        }
+
+        const recordIds = recordsToDelete.map(r => r.id);
+        await client.query(
+          'DELETE FROM remittance_line_items WHERE remittance_record_id = ANY($1)',
+          [recordIds]
+        );
+
+        const { rowCount } = await client.query(
+          'DELETE FROM remittance_records WHERE parish_id = $1 AND year = $2',
+          [parishId, year]
+        );
+
+        await client.query('COMMIT');
+
+        await logAuditEvent(user.id, 'BULK_DELETE_REMITTANCES', 'remittance_records', null, null, {
+          parishId,
+          year,
+          deletedCount: rowCount
+        });
+
+        return {
+          success: true,
+          deletedCount: rowCount,
+          message: `${rowCount} record(s) deleted for parish ${parishId} in ${year}`
+        };
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      } finally {
+        client.release();
+      }
+    },
 
     updateDebtor: async (_, { id, input }, { user }) => {
       requireRole(user, 'ADMIN');
