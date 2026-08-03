@@ -328,13 +328,14 @@ export const resolvers = {
       return mapRemittanceRecord(rows[0]);
     },
 
-    debtors: async (_, { year, overdueOnly }, { user }) => {
+    debtors: async (_, { year, month, overdueOnly }, { user }) => {
       requireRole(user, 'ADMIN', 'BISHOP');
 
       let query = 'SELECT * FROM debtors WHERE 1=1';
       const params = [];
 
       if (year) { params.push(year); query += ` AND year = $${params.length}`; }
+      if (month !== undefined && month !== null) { params.push(month); query += ` AND month = $${params.length}`; }
       if (overdueOnly) { query += ' AND is_paid = false'; }
 
       query += ' ORDER BY year DESC, month DESC, parish_id';
@@ -343,16 +344,33 @@ export const resolvers = {
       const debtorRows = rows.map(mapDebtor);
       if (debtorRows.length === 0) return debtorRows;
 
+      // Batch load parishes
       const parishIds = [...new Set(debtorRows.map(d => d._parishId))];
-      const { rows: parishRows } = await pool.query('SELECT * FROM parishes WHERE id = ANY($1)', [parishIds]);
+      const [{ rows: parishRows }, { rows: collectionRows }] = await Promise.all([
+        pool.query('SELECT * FROM parishes WHERE id = ANY($1)', [parishIds]),
+        pool.query('SELECT * FROM collections WHERE id = ANY($1)', [[...new Set(debtorRows.map(d => d._collectionId).filter(Boolean))]]),
+      ]);
+
       const parishById = {};
       for (const row of parishRows) parishById[row.id] = mapParish(row);
       for (const d of debtorRows) d._parishObj = parishById[d._parishId] || null;
 
+      const collectionById = {};
+      for (const row of collectionRows) collectionById[row.id] = mapCollection(row);
+      for (const d of debtorRows) d._collectionObj = collectionById[d._collectionId] || null;
+
+      // Robust cathedral sort
+      const isCathedral = (name) => {
+        const n = (name || '').toLowerCase().replace(/\./g, '');
+        return n.includes('aguleri') && n.includes('joseph');
+      };
+
       debtorRows.sort((a, b) => {
-        if (a._parishObj?.name === 'Aguleri: St. Joseph') return -1;
-        if (b._parishObj?.name === 'Aguleri: St. Joseph') return 1;
-        return 0;
+        const aCat = isCathedral(a._parishObj?.name);
+        const bCat = isCathedral(b._parishObj?.name);
+        if (aCat && !bCat) return -1;
+        if (!aCat && bCat) return 1;
+        return (a._parishObj?.name || '').localeCompare(b._parishObj?.name || '');
       });
 
       return debtorRows;

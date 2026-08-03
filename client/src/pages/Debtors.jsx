@@ -4,11 +4,11 @@ import { gql } from '@apollo/client';
 import { AlertCircle, CheckCircle, RefreshCw, Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
-const YEAR = new Date().getFullYear();
+const CURRENT_YEAR = new Date().getFullYear();
 
 const GET_DEBTORS = gql`
-  query GetDebtors($year: Int, $overdueOnly: Boolean) {
-    debtors(year: $year, overdueOnly: $overdueOnly) {
+  query GetDebtors($year: Int, $month: Int, $overdueOnly: Boolean) {
+    debtors(year: $year, month: $month, overdueOnly: $overdueOnly) {
       id
       year
       month
@@ -97,11 +97,12 @@ function processDebtors(debtors, selectedYear) {
     });
   }
 
-  // 3. Yearly collections — group by year (show ALL years)
+  // 3. Yearly collections — group by year (show ALL years >= CURRENT_YEAR)
   for (const collName of YEARLY_COLLECTIONS) {
     const yearMap = {};
     for (const d of debtors) {
       if (d.collection?.name !== collName || d.isPaid) continue;
+      if (d.year < CURRENT_YEAR) continue; // Only show current year and forward
       if (!yearMap[d.year]) yearMap[d.year] = [];
       yearMap[d.year].push(d.parish.name);
     }
@@ -216,18 +217,18 @@ function TabularSection({ title, subtitle, columns }) {
 
 export function Debtors() {
   const { user } = useAuth();
-  const [year, setYear] = useState(YEAR);
+  const [year, setYear] = useState(CURRENT_YEAR);
+  const [month, setMonth] = useState(null);
   const [confirming, setConfirming] = useState(false);
 
   const { data, loading, error, refetch } = useQuery(GET_DEBTORS, {
-    variables: { year, overdueOnly: true },
+    variables: { year, month, overdueOnly: true },
     fetchPolicy: 'network-only',
   });
 
-  // Refetch when year changes
   useEffect(() => {
-    refetch({ year, overdueOnly: true });
-  }, [year, refetch]);
+    refetch({ year, month, overdueOnly: true });
+  }, [year, month, refetch]);
 
   const [regenerate, { data: regenData, error: regenError }] = useMutation(REGENERATE_DEBTORS);
 
@@ -237,9 +238,24 @@ export function Debtors() {
 
   const handleRegenerate = async () => {
     await regenerate({ variables: { year } });
-    await refetch({ year, overdueOnly: true });
+    await refetch({ year, month, overdueOnly: true });
     setConfirming(false);
   };
+
+  const selectStyle = {
+    height: '36px',
+    borderRadius: '8px',
+    border: '1px solid #F5E3D7',
+    padding: '0 12px',
+    fontSize: '13px',
+    color: '#1a0a06',
+    backgroundColor: 'white',
+    outline: 'none',
+    cursor: 'pointer',
+  };
+
+  // Years: current year and 5 years forward
+  const years = Array.from({ length: 6 }, (_, i) => CURRENT_YEAR + i);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -251,26 +267,20 @@ export function Debtors() {
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <label style={{ fontSize: '12px', fontWeight: 600, color: '#8B4C39' }}>Year:</label>
-            <select
-              value={year}
-              onChange={e => setYear(parseInt(e.target.value))}
-              style={{
-                height: '36px',
-                borderRadius: '8px',
-                border: '1px solid #F5E3D7',
-                padding: '0 12px',
-                fontSize: '13px',
-                color: '#1a0a06',
-                backgroundColor: 'white',
-                outline: 'none',
-                cursor: 'pointer',
-              }}
-            >
-              {Array.from({ length: 7 }, (_, i) => YEAR - 3 + i).map(y => (
-                <option key={y} value={y}>{y}</option>
+            <select value={year} onChange={e => setYear(parseInt(e.target.value))} style={selectStyle}>
+              {years.map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <label style={{ fontSize: '12px', fontWeight: 600, color: '#8B4C39' }}>Month:</label>
+            <select value={month ?? ''} onChange={e => setMonth(e.target.value ? parseInt(e.target.value) : null)} style={selectStyle}>
+              <option value="">All</option>
+              {MONTH_NAMES.map((name, idx) => (
+                <option key={idx} value={idx}>{name}</option>
               ))}
             </select>
           </div>

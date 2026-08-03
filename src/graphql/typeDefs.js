@@ -214,7 +214,7 @@ type BulkRecordResult {
     remittanceSources: [RemittanceSource!]!
     remittanceRecords(year: Int, month: Int, parishId: ID): [RemittanceRecord!]!
     remittanceRecord(id: ID!): RemittanceRecord
-    debtors(year: Int, overdueOnly: Boolean): [Debtor!]!
+    debtors(year: Int, month: Int, overdueOnly: Boolean): [Debtor!]!
     parishDebtors(parishId: ID!, year: Int): [Debtor!]!
     dashboardStats(year: Int!): DashboardStats!
     monthlySummary(year: Int!): [MonthlySummary!]!
