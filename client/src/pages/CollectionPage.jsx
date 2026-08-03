@@ -77,7 +77,7 @@ export function CollectionPage({ title, collectionName, type = 'monthly' }) {
   });
 
   const parishes = data?.parishes || [];
-  const sortedParishes = sortParishes(parishes);
+  const sortedParishes = sortParishes(parishes).filter(p => (p.createdYear || 2020) <= selectedYear);
   const sources = data?.remittanceSources || [];
   const source = sources.find(s =>
     s.name.toLowerCase().trim() === collectionName.toLowerCase().trim()

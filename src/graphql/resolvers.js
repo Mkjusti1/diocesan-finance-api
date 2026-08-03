@@ -97,6 +97,7 @@ function mapParish(row) {
     location: row.location,
     contactEmail: row.contact_email,
     contactPhone: row.contact_phone,
+    createdYear: row.created_year || new Date(row.created_at).getFullYear(),
     createdAt: row.created_at?.toISOString(),
   };
 }
@@ -638,13 +639,15 @@ export const resolvers = {
 
     createParish: async (_, { input }, { user }) => {
       requireRole(user, 'ADMIN');
-      const { name, location, diocese, contactEmail, contactPhone } = input;
+      const { name, location, diocese, contactEmail, contactPhone, createdYear } = input;
+
+      const yearToUse = createdYear || new Date().getFullYear();
 
       const { rows } = await pool.query(
-        `INSERT INTO parishes (name, location, diocese, contact_email, contact_phone)
-         VALUES ($1, $2, $3, $4, $5)
+        `INSERT INTO parishes (name, location, diocese, contact_email, contact_phone, created_year)
+         VALUES ($1, $2, $3, $4, $5, $6)
          RETURNING *`,
-        [name, location || null, diocese || null, contactEmail || null, contactPhone || null]
+        [name, location || null, diocese || null, contactEmail || null, contactPhone || null, yearToUse]
       );
 
       await logAuditEvent(user.id, 'CREATE_PARISH', 'parishes', rows[0].id, null, input);

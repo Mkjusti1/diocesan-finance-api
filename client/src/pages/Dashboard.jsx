@@ -44,7 +44,7 @@ export function Dashboard() {
 
   const stats = data?.dashboardStats;
   const parishSummaries = data?.parishSummaries || [];
-  const sortedParishSummaries = sortParishSummaries(parishSummaries);
+  const sortedParishSummaries = sortParishSummaries(parishSummaries).filter(s => (s.parish.createdYear || 2020) <= selectedYear);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>

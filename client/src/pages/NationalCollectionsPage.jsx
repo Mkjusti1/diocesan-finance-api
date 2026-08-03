@@ -40,7 +40,7 @@ export function NationalCollectionsPage() {
   const { data, loading, error, refetch } = useQuery(GET_NATIONAL_DATA, { errorPolicy: 'all' });
 
   const parishes = data?.parishes || [];
-  const sortedParishes = sortParishes(parishes);
+  const sortedParishes = sortParishes(parishes).filter(p => (p.createdYear || 2020) <= selectedYear);
   const allSources = data?.remittanceSources || [];
   const allRecords = data?.remittanceRecords || [];
 

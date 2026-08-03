@@ -12,7 +12,7 @@ export const typeDefs = gql`
     role: Role!
     parishId: ID
     parish: Parish
-    createdAt: String!
+    createdYear: Int\n  createdAt: String!
   }
 
   type Parish {
@@ -22,7 +22,7 @@ export const typeDefs = gql`
     location: String
     contactEmail: String
     contactPhone: String
-    createdAt: String!
+    createdYear: Int\n  createdAt: String!
   }
 
   type RemittanceSource {
@@ -30,7 +30,7 @@ export const typeDefs = gql`
     name: String!
     description: String
     isActive: Boolean!
-    createdAt: String!
+    createdYear: Int\n  createdAt: String!
   }
 
   type RemittanceLineItem {
@@ -50,7 +50,7 @@ export const typeDefs = gql`
     lineItems: [RemittanceLineItem!]!
     uploadedBy: User
     notes: String
-    createdAt: String!
+    createdYear: Int\n  createdAt: String!
   }
 
   type Debtor {
