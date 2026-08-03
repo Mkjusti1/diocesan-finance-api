@@ -12,6 +12,7 @@ import dioceseLogo from '@/assets/diocese-logo.jpg';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard', roles: ['ADMIN','BISHOP'] },
+  { to: '/parishes', icon: Building2, label: 'Parishes', roles: ['ADMIN','BISHOP'] },
   { to: '/rectory', icon: ReceiptText, label: 'Rectory', roles: ['ADMIN','BISHOP'] },
   { to: '/national-collections', icon: BookOpen, label: 'National Collections', roles: ['ADMIN','BISHOP'] },
   { to: '/harvest-bazaar', icon: Wheat, label: 'Harvest & Bazaar', roles: ['ADMIN','BISHOP'] },
