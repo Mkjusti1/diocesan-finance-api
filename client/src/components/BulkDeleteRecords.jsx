@@ -1,14 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, gql } from '@apollo/client';
 import { Trash2, AlertTriangle, Loader2, CheckCircle } from 'lucide-react';
-import { Button } from './ui/Button';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from './ui/Select';
+import { Button } from './ui/button';
 
 const GET_PARISHES = gql`
   query GetParishes {
@@ -59,49 +52,61 @@ export default function BulkDeleteRecords() {
 
   const selectedParishName = parishesData?.parishes?.find(p => p.id === selectedParish)?.name;
 
+  const selectStyle = {
+    width: '100%',
+    padding: '8px 12px',
+    borderRadius: '6px',
+    border: '1px solid #d1d5db',
+    backgroundColor: 'white',
+    fontSize: '14px',
+    color: '#374151',
+    outline: 'none',
+  };
+
   return (
-    <div className="bg-white rounded-lg border border-red-200 shadow-sm p-6 mt-6">
-      <div className="flex items-center gap-2 mb-4">
-        <Trash2 className="w-5 h-5 text-red-600" />
-        <h3 className="text-lg font-semibold text-gray-900">Bulk Delete Records</h3>
+    <div style={{ backgroundColor: 'white', borderRadius: '8px', border: '1px solid #fecaca', padding: '24px', marginTop: '24px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+        <Trash2 style={{ width: '20px', height: '20px', color: '#dc2626' }} />
+        <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#111827', margin: 0 }}>Bulk Delete Records</h3>
       </div>
 
-      <p className="text-sm text-gray-600 mb-4">
+      <p style={{ fontSize: '14px', color: '#6b7280', marginBottom: '16px' }}>
         Select a parish and year to permanently delete all remittance records for that combination.
         This action cannot be undone.
       </p>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Parish</label>
-          <Select value={selectedParish} onValueChange={setSelectedParish} disabled={parishesLoading}>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder={parishesLoading ? 'Loading...' : 'Select parish'} />
-            </SelectTrigger>
-            <SelectContent>
-              {parishesData?.parishes?.map((parish) => (
-                <SelectItem key={parish.id} value={parish.id}>
-                  {parish.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, color: '#374151', marginBottom: '4px' }}>Parish</label>
+          <select
+            value={selectedParish}
+            onChange={(e) => setSelectedParish(e.target.value)}
+            disabled={parishesLoading}
+            style={selectStyle}
+          >
+            <option value="">{parishesLoading ? 'Loading...' : 'Select parish'}</option>
+            {parishesData?.parishes?.map((parish) => (
+              <option key={parish.id} value={parish.id}>
+                {parish.name}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Year</label>
-          <Select value={selectedYear} onValueChange={setSelectedYear}>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select year" />
-            </SelectTrigger>
-            <SelectContent>
-              {years.map((year) => (
-                <SelectItem key={year} value={String(year)}>
-                  {year}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, color: '#374151', marginBottom: '4px' }}>Year</label>
+          <select
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(e.target.value)}
+            style={selectStyle}
+          >
+            <option value="">Select year</option>
+            {years.map((year) => (
+              <option key={year} value={String(year)}>
+                {year}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
@@ -110,25 +115,24 @@ export default function BulkDeleteRecords() {
           variant="destructive"
           onClick={() => setShowConfirm(true)}
           disabled={!selectedParish || !selectedYear || deleting}
-          className="w-full md:w-auto"
         >
-          <Trash2 className="w-4 h-4 mr-2" />
+          <Trash2 style={{ width: '16px', height: '16px', marginRight: '8px' }} />
           Delete Records
         </Button>
       ) : (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5" />
-            <div className="flex-1">
-              <p className="text-sm font-medium text-red-900 mb-1">
+        <div style={{ backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+            <AlertTriangle style={{ width: '20px', height: '20px', color: '#dc2626', marginTop: '2px', flexShrink: 0 }} />
+            <div style={{ flex: 1 }}>
+              <p style={{ fontSize: '14px', fontWeight: 500, color: '#7f1d1d', marginBottom: '4px' }}>
                 Are you sure?
               </p>
-              <p className="text-sm text-red-700 mb-3">
+              <p style={{ fontSize: '14px', color: '#991b1b', marginBottom: '12px' }}>
                 This will permanently delete all remittance records for{' '}
                 <strong>{selectedParishName}</strong> in{' '}
                 <strong>{selectedYear}</strong>.
               </p>
-              <div className="flex gap-2">
+              <div style={{ display: 'flex', gap: '8px' }}>
                 <Button
                   variant="destructive"
                   size="sm"
@@ -137,12 +141,12 @@ export default function BulkDeleteRecords() {
                 >
                   {deleting ? (
                     <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      <Loader2 style={{ width: '16px', height: '16px', marginRight: '8px', animation: 'spin 1s linear infinite' }} />
                       Deleting...
                     </>
                   ) : (
                     <>
-                      <Trash2 className="w-4 h-4 mr-2" />
+                      <Trash2 style={{ width: '16px', height: '16px', marginRight: '8px' }} />
                       Yes, Delete
                     </>
                   )}
@@ -162,14 +166,14 @@ export default function BulkDeleteRecords() {
       )}
 
       {result?.deleteRemittanceRecordsByParishAndYear?.success && (
-        <div className="mt-4 flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg p-3">
-          <CheckCircle className="w-4 h-4" />
+        <div style={{ marginTop: '16px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: '#15803d', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '12px' }}>
+          <CheckCircle style={{ width: '16px', height: '16px' }} />
           {result.deleteRemittanceRecordsByParishAndYear.message}
         </div>
       )}
 
       {error && (
-        <div className="mt-4 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3">
+        <div style={{ marginTop: '16px', fontSize: '14px', color: '#b91c1c', backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '12px' }}>
           {error.message}
         </div>
       )}
