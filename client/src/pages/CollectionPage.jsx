@@ -3,7 +3,6 @@ import { useQuery } from '@apollo/client/react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { gql } from '@apollo/client/core';
 import { formatCurrency } from '@/lib/utils';
-import BulkDeleteRecords from '../components/BulkDeleteRecords';
 
 const currentYear = new Date().getFullYear();
 const YEARS = Array.from({ length: currentYear - 2022 }, (_, i) => currentYear - i);
@@ -336,7 +335,6 @@ export function CollectionPage({ title, collectionName, type = 'monthly' }) {
             </table>
           </div>
         )}
-      <BulkDeleteRecords />
       </div>
     </div>
   );

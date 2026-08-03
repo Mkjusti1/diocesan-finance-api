@@ -219,6 +219,6 @@ export const typeDefs = gql`
     recordPayment(input: RecordPaymentInput!): Debtor!
     markAsOverdue(parishId: ID!, year: Int!, month: Int!): Debtor!
     adminResetPassword(userId: ID!, newPassword: String!): Boolean!
- deleteRemittanceRecordsByParishAndYear(parishId: ID!, year: Int!): BulkDeleteResult!
+ deleteRemittanceRecordsByCollectionAndYear(collectionName: String!, year: Int!): BulkDeleteResult!
   }
 `;

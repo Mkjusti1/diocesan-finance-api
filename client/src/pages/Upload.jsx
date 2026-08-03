@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { Upload, FileSpreadsheet, CheckCircle, AlertCircle, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import BulkDeleteRecords from '../components/BulkDeleteRecords';
 
 const YEAR = new Date().getFullYear();
 const API_URL = import.meta.env.VITE_API_URL || '';
@@ -440,6 +441,7 @@ export function UploadPage() {
         </div>
       )}
 
+    <BulkDeleteRecords />
     </div>
   );
 }

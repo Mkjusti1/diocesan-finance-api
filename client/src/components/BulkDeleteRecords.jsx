@@ -4,18 +4,18 @@ import { gql } from '@apollo/client/core';
 import { Trash2, AlertTriangle, Loader2, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-const GET_PARISHES = gql`
-  query GetParishes {
-    parishes {
+const GET_COLLECTIONS = gql`
+  query GetCollections {
+    remittanceSources {
       id
       name
     }
   }
 `;
 
-const DELETE_RECORDS = gql`
-  mutation DeleteRemittanceRecordsByParishAndYear($parishId: ID!, $year: Int!) {
-    deleteRemittanceRecordsByParishAndYear(parishId: $parishId, year: $year) {
+const DELETE_COLLECTION = gql`
+  mutation DeleteRemittanceRecordsByCollectionAndYear($collectionName: String!, $year: Int!) {
+    deleteRemittanceRecordsByCollectionAndYear(collectionName: $collectionName, year: $year) {
       success
       deletedCount
       message
@@ -24,34 +24,34 @@ const DELETE_RECORDS = gql`
 `;
 
 export default function BulkDeleteRecords() {
-  const [selectedParish, setSelectedParish] = useState('');
+  const [selectedCollection, setSelectedCollection] = useState('');
   const [selectedYear, setSelectedYear] = useState('');
   const [showConfirm, setShowConfirm] = useState(false);
 
-  const { data: parishesData, loading: parishesLoading } = useQuery(GET_PARISHES);
-  const [deleteRecords, { loading: deleting, data: result, error }] = useMutation(DELETE_RECORDS, {
-    refetchQueries: ['GetParishes', 'GetRemittanceRecords'],
+  const { data: collectionsData, loading: collectionsLoading } = useQuery(GET_COLLECTIONS);
+  const [deleteCollection, { loading: deleting, data: result, error }] = useMutation(DELETE_COLLECTION, {
+    refetchQueries: ['GetCollections'],
   });
 
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: currentYear - 2019 }, (_, i) => currentYear - i);
 
   const handleDelete = async () => {
-    if (!selectedParish || !selectedYear) return;
+    if (!selectedCollection || !selectedYear) return;
     
-    await deleteRecords({
+    await deleteCollection({
       variables: {
-        parishId: selectedParish,
+        collectionName: selectedCollection,
         year: parseInt(selectedYear),
       },
     });
     
     setShowConfirm(false);
-    setSelectedParish('');
+    setSelectedCollection('');
     setSelectedYear('');
   };
 
-  const selectedParishName = parishesData?.parishes?.find(p => p.id === selectedParish)?.name;
+  const selectedCollectionName = collectionsData?.remittanceSources?.find(c => c.id === selectedCollection)?.name;
 
   const selectStyle = {
     width: '100%',
@@ -68,27 +68,27 @@ export default function BulkDeleteRecords() {
     <div style={{ backgroundColor: 'white', borderRadius: '8px', border: '1px solid #fecaca', padding: '24px', marginTop: '24px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
         <Trash2 style={{ width: '20px', height: '20px', color: '#dc2626' }} />
-        <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#111827', margin: 0 }}>Bulk Delete Records</h3>
+        <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#111827', margin: 0 }}>Delete Collection Data</h3>
       </div>
 
       <p style={{ fontSize: '14px', color: '#6b7280', marginBottom: '16px' }}>
-        Select a parish and year to permanently delete all remittance records for that combination.
+        Select a collection type and year to permanently delete all entries across every parish.
         This action cannot be undone.
       </p>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
         <div>
-          <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, color: '#374151', marginBottom: '4px' }}>Parish</label>
+          <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, color: '#374151', marginBottom: '4px' }}>Collection Type</label>
           <select
-            value={selectedParish}
-            onChange={(e) => setSelectedParish(e.target.value)}
-            disabled={parishesLoading}
+            value={selectedCollection}
+            onChange={(e) => setSelectedCollection(e.target.value)}
+            disabled={collectionsLoading}
             style={selectStyle}
           >
-            <option value="">{parishesLoading ? 'Loading...' : 'Select parish'}</option>
-            {parishesData?.parishes?.map((parish) => (
-              <option key={parish.id} value={parish.id}>
-                {parish.name}
+            <option value="">{collectionsLoading ? 'Loading...' : 'Select collection'}</option>
+            {collectionsData?.remittanceSources?.map((c) => (
+              <option key={c.id} value={c.name}>
+                {c.name}
               </option>
             ))}
           </select>
@@ -115,10 +115,10 @@ export default function BulkDeleteRecords() {
         <Button
           variant="destructive"
           onClick={() => setShowConfirm(true)}
-          disabled={!selectedParish || !selectedYear || deleting}
+          disabled={!selectedCollection || !selectedYear || deleting}
         >
           <Trash2 style={{ width: '16px', height: '16px', marginRight: '8px' }} />
-          Delete Records
+          Delete Collection Data
         </Button>
       ) : (
         <div style={{ backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '16px' }}>
@@ -129,9 +129,8 @@ export default function BulkDeleteRecords() {
                 Are you sure?
               </p>
               <p style={{ fontSize: '14px', color: '#991b1b', marginBottom: '12px' }}>
-                This will permanently delete all remittance records for{' '}
-                <strong>{selectedParishName}</strong> in{' '}
-                <strong>{selectedYear}</strong>.
+                This will permanently delete all <strong>{selectedCollectionName}</strong> entries for{' '}
+                <strong>{selectedYear}</strong> across <strong>all parishes</strong>.
               </p>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <Button
@@ -166,10 +165,10 @@ export default function BulkDeleteRecords() {
         </div>
       )}
 
-      {result?.deleteRemittanceRecordsByParishAndYear?.success && (
+      {result?.deleteRemittanceRecordsByCollectionAndYear?.success && (
         <div style={{ marginTop: '16px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: '#15803d', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '12px' }}>
           <CheckCircle style={{ width: '16px', height: '16px' }} />
-          {result.deleteRemittanceRecordsByParishAndYear.message}
+          {result.deleteRemittanceRecordsByCollectionAndYear.message}
         </div>
       )}
 

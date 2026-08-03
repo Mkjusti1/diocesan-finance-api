@@ -782,45 +782,80 @@ export const resolvers = {
       await logAuditEvent(user.id, 'DELETE_REMITTANCE', 'remittance_records', id, rows[0], null);
       return true;
     },
-    deleteRemittanceRecordsByParishAndYear: async (_, { parishId, year }, { user }) => {
+    deleteRemittanceRecordsByCollectionAndYear: async (_, { collectionName, year }, { user }) => {
       requireRole(user, 'ADMIN');
 
       const client = await pool.connect();
       try {
         await client.query('BEGIN');
 
-        const { rows: recordsToDelete } = await client.query(
-          'SELECT id FROM remittance_records WHERE parish_id = $1 AND year = $2',
-          [parishId, year]
+        // Find the collection ID by name
+        const { rows: collectionRows } = await client.query(
+          'SELECT id FROM collections WHERE LOWER(name) = LOWER($1)',
+          [collectionName]
         );
 
-        if (recordsToDelete.length === 0) {
-          throw new Error('No remittance records found for this parish and year');
+        if (collectionRows.length === 0) {
+          throw new Error(`Collection "${collectionName}" not found`);
         }
 
-        const recordIds = recordsToDelete.map(r => r.id);
+        const collectionId = collectionRows[0].id;
+
+        // Find all line items for this collection in this year
+        const { rows: lineItemsToDelete } = await client.query(
+          `SELECT rli.id, rli.remittance_record_id
+           FROM remittance_line_items rli
+           JOIN remittance_records rr ON rli.remittance_record_id = rr.id
+           WHERE rli.collection_id = $1 AND rr.year = $2`,
+          [collectionId, year]
+        );
+
+        if (lineItemsToDelete.length === 0) {
+          throw new Error(`No records found for collection "${collectionName}" in ${year}`);
+        }
+
+        const lineItemIds = lineItemsToDelete.map(li => li.id);
+        const recordIds = [...new Set(lineItemsToDelete.map(li => li.remittance_record_id))];
+
+        // Delete the line items
         await client.query(
-          'DELETE FROM remittance_line_items WHERE remittance_record_id = ANY($1)',
+          'DELETE FROM remittance_line_items WHERE id = ANY($1)',
+          [lineItemIds]
+        );
+
+        // Delete records that now have no line items left
+        const { rows: emptyRecords } = await client.query(
+          `SELECT rr.id FROM remittance_records rr
+           WHERE rr.id = ANY($1)
+           AND NOT EXISTS (
+             SELECT 1 FROM remittance_line_items rli WHERE rli.remittance_record_id = rr.id
+           )`,
           [recordIds]
         );
 
-        const { rowCount } = await client.query(
-          'DELETE FROM remittance_records WHERE parish_id = $1 AND year = $2',
-          [parishId, year]
-        );
+        let deletedRecordsCount = 0;
+        if (emptyRecords.length > 0) {
+          const emptyRecordIds = emptyRecords.map(r => r.id);
+          const { rowCount } = await client.query(
+            'DELETE FROM remittance_records WHERE id = ANY($1)',
+            [emptyRecordIds]
+          );
+          deletedRecordsCount = rowCount;
+        }
 
         await client.query('COMMIT');
 
-        await logAuditEvent(user.id, 'BULK_DELETE_REMITTANCES', 'remittance_records', null, null, {
-          parishId,
+        await logAuditEvent(user.id, 'BULK_DELETE_COLLECTION', 'remittance_records', null, null, {
+          collectionName,
           year,
-          deletedCount: rowCount
+          deletedLineItems: lineItemsToDelete.length,
+          deletedRecords: deletedRecordsCount
         });
 
         return {
           success: true,
-          deletedCount: rowCount,
-          message: `${rowCount} record(s) deleted for parish ${parishId} in ${year}`
+          deletedCount: lineItemsToDelete.length,
+          message: `${lineItemsToDelete.length} collection entries deleted for "${collectionName}" in ${year}. ${deletedRecordsCount} empty record(s) removed.`
         };
       } catch (error) {
         await client.query('ROLLBACK');
