@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { useQuery, useMutation, gql } from '@apollo/client';
+import { useQuery, useMutation } from '@apollo/client/react';
+import { gql } from '@apollo/client/core';
 import { Trash2, AlertTriangle, Loader2, CheckCircle } from 'lucide-react';
-import { Button } from './ui/button';
+import { Button } from '@/components/ui/button';
 
 const GET_PARISHES = gql`
   query GetParishes {
