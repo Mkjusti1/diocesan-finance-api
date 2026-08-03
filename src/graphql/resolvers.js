@@ -224,7 +224,7 @@ export const resolvers = {
 
     parishes: async (_, __, { user }) => {
       requireAuth(user);
-      const { rows } = await pool.query(`SELECT * FROM parishes ORDER BY CASE WHEN name = 'Aguleri: St. Joseph' THEN 0 ELSE 1 END, name`);
+      const { rows } = await pool.query(`SELECT * FROM parishes ORDER BY CASE WHEN LOWER(name) LIKE '%aguleri%joseph%' THEN 0 ELSE 1 END, name`);
       return rows.map(mapParish);
     },
 

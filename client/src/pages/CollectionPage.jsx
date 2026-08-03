@@ -51,10 +51,17 @@ const GET_ALL_COLLECTION_DATA = gql`
   }
 `;
 
+function isCathedral(parish) {
+  const n = (parish.name || '').toLowerCase().replace(/\./g, '');
+  return n.includes('aguleri') && n.includes('joseph');
+}
+
 function sortParishes(parishes) {
   return [...parishes].sort((a, b) => {
-    if (a.name === 'Aguleri: St. Joseph') return -1;
-    if (b.name === 'Aguleri: St. Joseph') return 1;
+    const aCat = isCathedral(a);
+    const bCat = isCathedral(b);
+    if (aCat && !bCat) return -1;
+    if (!aCat && bCat) return 1;
     return a.name.localeCompare(b.name);
   });
 }
