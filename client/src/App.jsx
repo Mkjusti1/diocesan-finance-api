@@ -14,7 +14,8 @@ import { UploadPage } from '@/pages/Upload';
 import { Profile } from '@/pages/Profile';
 import { CollectionPage } from '@/pages/CollectionPage';
 import { NationalCollectionsPage } from '@/pages/NationalCollectionsPage';
-import { RecordPayment } from '@/pages/RecordPayment';\nimport { BulkEntry } from '@/pages/BulkEntry';
+import { RecordPayment } from '@/pages/RecordPayment';
+import { BulkEntry } from '@/pages/BulkEntry';
 
 export default function App() {
   return (
