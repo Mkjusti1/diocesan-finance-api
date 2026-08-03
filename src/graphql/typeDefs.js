@@ -186,6 +186,27 @@ export const typeDefs = gql`
  message: String!
  }
 
+
+input BulkRecordEntryInput {
+  parishId: ID!
+  amount: Float!
+}
+
+input BulkRecordRemittancesInput {
+  year: Int!
+  month: Int!
+  collectionCategory: String!
+  entries: [BulkRecordEntryInput!]!
+}
+
+type BulkRecordResult {
+  success: Boolean!
+  createdCount: Int!
+  updatedCount: Int!
+  collectionName: String!
+  message: String!
+}
+
  type Query {
     me: User
     parishes: [Parish!]!
@@ -219,6 +240,7 @@ export const typeDefs = gql`
     recordPayment(input: RecordPaymentInput!): Debtor!
     markAsOverdue(parishId: ID!, year: Int!, month: Int!): Debtor!
     adminResetPassword(userId: ID!, newPassword: String!): Boolean!
+ bulkRecordRemittances(input: BulkRecordRemittancesInput!): BulkRecordResult!
  deleteRemittanceRecordsByCollectionAndYear(collectionName: String!, year: Int!): BulkDeleteResult!
   }
 `;

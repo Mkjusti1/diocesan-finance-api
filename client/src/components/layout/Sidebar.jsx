@@ -5,7 +5,7 @@ import {
   Users, LogOut, UploadCloud, KeyRound,
   BookOpen, GraduationCap,
   Wheat, Landmark, HeartHandshake, Building2,
-  CreditCard, ChevronLeft, ChevronRight
+  CreditCard, ChevronLeft, ChevronRight,\n  Table
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import dioceseLogo from '@/assets/diocese-logo.jpg';
@@ -21,6 +21,7 @@ const navItems = [
   { to: '/seminary-collections', icon: GraduationCap, label: 'Seminary Collections', roles: ['ADMIN','BISHOP'] },
   { to: '/debtors', icon: ShieldAlert, label: 'Debtors', roles: ['ADMIN','BISHOP'] },
   { to: '/record-payment', icon: CreditCard, label: 'Record Payment', roles: ['ADMIN'] },
+  { to: '/bulk-entry', icon: Table, label: 'Bulk Entry', roles: ['ADMIN'] },
   { to: '/upload', icon: UploadCloud, label: 'Upload', roles: ['ADMIN'] },
   { to: '/users', icon: Users, label: 'Users', roles: ['ADMIN'] },
   { to: '/profile', icon: KeyRound, label: 'Profile', roles: ['ADMIN','BISHOP'] },

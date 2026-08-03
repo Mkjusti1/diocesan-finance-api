@@ -14,7 +14,7 @@ import { UploadPage } from '@/pages/Upload';
 import { Profile } from '@/pages/Profile';
 import { CollectionPage } from '@/pages/CollectionPage';
 import { NationalCollectionsPage } from '@/pages/NationalCollectionsPage';
-import { RecordPayment } from '@/pages/RecordPayment';
+import { RecordPayment } from '@/pages/RecordPayment';\nimport { BulkEntry } from '@/pages/BulkEntry';
 
 export default function App() {
   return (
@@ -33,7 +33,7 @@ export default function App() {
               <Route path="/cathedraticum" element={<CollectionPage collectionName="Cathedraticum" title="Cathedraticum" type="annual" />} />
               <Route path="/project-sunday" element={<CollectionPage collectionName="Project Sunday" title="Project Sunday" type="annual" />} />
               <Route path="/seminary-collections" element={<CollectionPage collectionName="Seminary Collections" title="Seminary Collections" type="annual" />} />
-              <Route path="/record-payment" element={<RecordPayment />} />
+              <Route path="/record-payment" element={<RecordPayment />} />\n            <Route path="/bulk-entry" element={<BulkEntry />} />
               <Route path="/debtors" element={<Debtors />} />
               <Route path="/upload" element={<UploadPage />} />
               <Route path="/users" element={<Users />} />

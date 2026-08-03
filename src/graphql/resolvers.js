@@ -984,5 +984,87 @@ export const resolvers = {
       await logAuditEvent(user.id, 'MARK_OVERDUE', 'debtors', rows[0].id, null, { parishId, year, month });
       return mapDebtor(rows[0]);
     },
+    bulkRecordRemittances: async (_, { input }, { user }) => {
+      requireRole(user, 'ADMIN');
+      const { year, month, collectionCategory, entries } = input;
+      if (!entries || entries.length === 0) throw new Error('No entries provided');
+
+      // Find collections matching the selected category
+      const { rows: allCollections } = await pool.query(
+        'SELECT id, name FROM collections WHERE is_active = true'
+      );
+
+      const matchingCollections = allCollections.filter(c => {
+        const cat = getCollectionCategory(c.name);
+        return cat.toLowerCase() === collectionCategory.toLowerCase();
+      });
+
+      if (matchingCollections.length === 0) {
+        throw new Error(`No active collections found for category "${collectionCategory}"`);
+      }
+
+      // Use the first matching collection for line items
+      const targetCollection = matchingCollections[0];
+
+      const client = await pool.connect();
+      let createdCount = 0;
+      let updatedCount = 0;
+
+      try {
+        await client.query('BEGIN');
+
+        for (const entry of entries) {
+          if (!entry.amount || entry.amount <= 0) continue;
+
+          // Find or create remittance record
+          let { rows: recRows } = await client.query(
+            'SELECT id FROM remittance_records WHERE parish_id = $1 AND year = $2 AND month = $3',
+            [entry.parishId, year, month]
+          );
+
+          let recordId;
+          if (recRows.length === 0) {
+            const { rows } = await client.query(
+              `INSERT INTO remittance_records (parish_id, year, month, uploaded_by)
+               VALUES ($1, $2, $3, $4) RETURNING id`,
+              [entry.parishId, year, month, user.id]
+            );
+            recordId = rows[0].id;
+            createdCount++;
+          } else {
+            recordId = recRows[0].id;
+            updatedCount++;
+          }
+
+          // Upsert line item
+          await client.query(
+            `INSERT INTO remittance_line_items (remittance_record_id, collection_id, amount)
+             VALUES ($1, $2, $3)
+             ON CONFLICT (remittance_record_id, collection_id)
+             DO UPDATE SET amount = EXCLUDED.amount, updated_at = NOW()`,
+            [recordId, targetCollection.id, entry.amount]
+          );
+        }
+
+        await client.query('COMMIT');
+
+        await logAuditEvent(user.id, 'BULK_RECORD_REMITTANCES', 'remittance_records', null, null, {
+          year, month, collectionCategory, collectionId: targetCollection.id, entryCount: entries.length
+        });
+
+        return {
+          success: true,
+          createdCount,
+          updatedCount,
+          collectionName: targetCollection.name,
+          message: `${createdCount} record(s) created, ${updatedCount} record(s) updated for ${targetCollection.name} (${year})`
+        };
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      } finally {
+        client.release();
+      }
+    },
   },
 };
