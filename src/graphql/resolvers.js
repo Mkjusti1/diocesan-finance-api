@@ -197,10 +197,12 @@ export const resolvers = {
   Debtor: {
     parish: async (parent) => {
       if (parent._parishObj !== undefined) return parent._parishObj;
+      if (!parent._parishId) return null;
       const { rows } = await pool.query('SELECT * FROM parishes WHERE id = $1', [parent._parishId]);
       return mapParish(rows[0]);
     },
     collection: async (parent) => {
+      if (parent._collectionObj !== undefined) return parent._collectionObj;
       if (!parent._collectionId) return null;
       const { rows } = await pool.query('SELECT * FROM collections WHERE id = $1', [parent._collectionId]);
       return mapCollection(rows[0]);
