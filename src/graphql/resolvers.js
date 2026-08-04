@@ -405,7 +405,9 @@ export const resolvers = {
       });
 
       return result;
-    },\nparishDebtors: async (_, { parishId, year }, { user }) => {
+    },
+
+    parishDebtors: async (_, { parishId, year }, { user }) => {
       requireAuth(user);
 
       let query = 'SELECT * FROM debtors WHERE parish_id = $1';
