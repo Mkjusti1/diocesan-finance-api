@@ -341,8 +341,7 @@ export const resolvers = {
           d.parish_id, d.collection_id,
           p.id as p_id, p.name as p_name, p.diocese as p_diocese,
           p.location as p_location, p.contact_email as p_contact_email,
-          p.contact_phone as p_contact_phone, p.created_year as p_created_year,
-          p.created_at as p_created_at,
+          p.contact_phone as p_contact_phone, p.created_at as p_created_at,
           c.id as c_id, c.name as c_name, c.description as c_description,
           c.is_active as c_is_active, c.created_at as c_created_at
         FROM debtors d
@@ -386,7 +385,7 @@ export const resolvers = {
           location: row.p_location,
           contactEmail: row.p_contact_email,
           contactPhone: row.p_contact_phone,
-          createdYear: row.p_created_year || new Date(row.p_created_at).getFullYear(),
+          createdYear: new Date(row.p_created_at).getFullYear(),
           createdAt: row.p_created_at?.toISOString(),
         } : null,
         _collectionObj: row.c_id ? {
