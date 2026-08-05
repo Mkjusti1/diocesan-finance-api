@@ -172,7 +172,7 @@ app.post('/api/upload/preview', apiLimiter, authenticateToken, upload.single('fi
 
     let preview;
     if (YEARLY_FORMATS.includes(format)) {
-      const records = await parseYearlyColumnsCSV(req.file.path, collectionName, req.user.id);
+      const records = await parseYearlyColumnsCSV(req.file.path, collectionName, req.user.id, year || null);
       preview = records.map(r => ({
         parishName: r.parishName,
         year: r.year,
@@ -204,7 +204,7 @@ app.post('/api/upload/horizontal', apiLimiter, authenticateToken, upload.single(
     let rawRecords;
     if (YEARLY_FORMATS.includes(format)) {
       if (!collectionName) return res.status(400).json({ error: 'Collection name is required' });
-      rawRecords = await parseYearlyColumnsCSV(req.file.path, collectionName, req.user.id);
+      rawRecords = await parseYearlyColumnsCSV(req.file.path, collectionName, req.user.id, year || null);
     } else {
       if (!year) return res.status(400).json({ error: 'Year is required' });
       rawRecords = await parseHorizontalCSV(req.file.path, parseInt(year), collectionName || 'General Collection', req.user.id);

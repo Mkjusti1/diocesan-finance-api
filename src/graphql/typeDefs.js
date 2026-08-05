@@ -197,6 +197,7 @@ input BulkRecordRemittancesInput {
   year: Int!
   month: Int!
   collectionCategory: String!
+  collectionName: String
   entries: [BulkRecordEntryInput!]!
 }
 

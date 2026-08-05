@@ -8,12 +8,14 @@ const API_URL = import.meta.env.VITE_API_URL || '';
 
 const HORIZONTAL_FORMATS = ['horizontal', 'harvest-bazaar', 'cathedraticum', 'project-sunday', 'seminary-collections'];
 const YEARLY_FORMATS = ['harvest-bazaar', 'cathedraticum', 'project-sunday', 'seminary-collections'];
+const REQUIRES_YEAR_FORMATS = ['horizontal', 'national'];
 
 export function UploadPage() {
   const { user } = useAuth();
   const fileRef = useRef(null);
   const [file, setFile] = useState(null);
   const [year, setYear] = useState(YEAR);
+  const [restrictYear, setRestrictYear] = useState('');
   const [format, setFormat] = useState('horizontal');
   const [collectionName, setCollectionName] = useState('');
   const [step, setStep] = useState('idle');
@@ -33,6 +35,7 @@ export function UploadPage() {
 
   const handleFormatChange = (f) => {
     setFormat(f);
+    setRestrictYear('');
     if (f === 'harvest-bazaar') setCollectionName('Harvest & Bazaar');
     else if (f === 'cathedraticum') setCollectionName('Cathedraticum');
     else if (f === 'project-sunday') setCollectionName('Project Sunday');
@@ -52,13 +55,13 @@ export function UploadPage() {
   };
 
   const runPreview = async () => {
-    if (!file || (format === 'horizontal' && !year)) return;
+    if (!file || (REQUIRES_YEAR_FORMATS.includes(format) && !year)) return;
     setStep('previewing');
     setError('');
 
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('year', year);
+    formData.append('year', YEARLY_FORMATS.includes(format) ? (restrictYear || '') : year);
     formData.append('format', format);
     formData.append('collectionName', getCollectionName());
 
@@ -133,13 +136,13 @@ export function UploadPage() {
   };
 
   const runHorizontalUpload = async () => {
-    if (!file || (format === 'horizontal' && !year) || !getCollectionName()) return;
+    if (!file || (REQUIRES_YEAR_FORMATS.includes(format) && !year) || !getCollectionName()) return;
     setStep('uploading');
     setError('');
 
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('year', year);
+    formData.append('year', YEARLY_FORMATS.includes(format) ? (restrictYear || '') : year);
     formData.append('format', format);
     formData.append('collectionName', getCollectionName());
 
@@ -170,6 +173,7 @@ export function UploadPage() {
   const reset = () => {
     setFile(null);
     setYear(YEAR);
+    setRestrictYear('');
     setFormat('horizontal');
     setCollectionName('');
     setStep('idle');
@@ -235,8 +239,8 @@ export function UploadPage() {
           </div>
 
           {/* Year + collection name */}
-          <div style={{ display: 'grid', gridTemplateColumns: format === 'horizontal' ? '1fr 1fr' : '1fr', gap: '12px' }}>
-            {format === 'horizontal' && (
+          <div style={{ display: 'grid', gridTemplateColumns: format === 'national' ? '1fr' : '1fr 1fr', gap: '12px' }}>
+            {REQUIRES_YEAR_FORMATS.includes(format) && (
             <div>
               <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#8B4C39', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>
                 Financial Year *
@@ -245,6 +249,22 @@ export function UploadPage() {
                 type="number" value={year} onChange={e => setYear(parseInt(e.target.value))}
                 style={{ width: '100%', height: '40px', borderRadius: '8px', border: '1px solid #F5E3D7', padding: '0 12px', fontSize: '14px', outline: 'none', color: '#1a0a06', boxSizing: 'border-box' }}
               />
+            </div>
+            )}
+
+            {YEARLY_FORMATS.includes(format) && (
+            <div>
+              <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#8B4C39', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>
+                Restrict to Year (optional)
+              </label>
+              <input
+                type="number" value={restrictYear} onChange={e => setRestrictYear(e.target.value)}
+                placeholder="All years in file"
+                style={{ width: '100%', height: '40px', borderRadius: '8px', border: '1px solid #F5E3D7', padding: '0 12px', fontSize: '14px', outline: 'none', color: '#1a0a06', boxSizing: 'border-box' }}
+              />
+              <p style={{ fontSize: '11px', color: '#A7A68B', marginTop: '4px' }}>
+                This file already has a column per year — leave blank to import every year, or set one to only (re-)import that year.
+              </p>
             </div>
             )}
 
@@ -267,6 +287,12 @@ export function UploadPage() {
                   }}
                 />
               </div>
+            )}
+
+            {format === 'national' && (
+              <p style={{ fontSize: '11px', color: '#A7A68B', gridColumn: '1 / -1' }}>
+                Each individual collection (Catechetical Week, Divine Mercy, etc.) is read from the file's own column headers — no need to name one here.
+              </p>
             )}
           </div>
 
@@ -302,11 +328,11 @@ export function UploadPage() {
 
           <button
             onClick={handleUpload}
-            disabled={!file || (format === 'horizontal' && !year) || step === 'previewing' || step === 'uploading' || (HORIZONTAL_FORMATS.includes(format) && !getCollectionName())}
+            disabled={!file || (REQUIRES_YEAR_FORMATS.includes(format) && !year) || step === 'previewing' || step === 'uploading' || (HORIZONTAL_FORMATS.includes(format) && !getCollectionName())}
             style={{
               height: '44px', borderRadius: '8px', border: 'none',
-              backgroundColor: (!file || (format === 'horizontal' && !year) || (HORIZONTAL_FORMATS.includes(format) && !getCollectionName())) ? '#F5E3D7' : '#8B4C39',
-              color: 'white', fontSize: '14px', fontWeight: 600, cursor: (!file || (format === 'horizontal' && !year) || (HORIZONTAL_FORMATS.includes(format) && !getCollectionName())) ? 'not-allowed' : 'pointer',
+              backgroundColor: (!file || (REQUIRES_YEAR_FORMATS.includes(format) && !year) || (HORIZONTAL_FORMATS.includes(format) && !getCollectionName())) ? '#F5E3D7' : '#8B4C39',
+              color: 'white', fontSize: '14px', fontWeight: 600, cursor: (!file || (REQUIRES_YEAR_FORMATS.includes(format) && !year) || (HORIZONTAL_FORMATS.includes(format) && !getCollectionName())) ? 'not-allowed' : 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
               transition: 'all 0.2s'
             }}

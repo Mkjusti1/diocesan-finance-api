@@ -11,6 +11,12 @@ const GET_PARISHES = gql`
       name
       createdYear
     }
+    remittanceSources {
+      id
+      name
+      category
+      isActive
+    }
   }
 `;
 
@@ -49,6 +55,7 @@ export function BulkEntry() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedCollectionName, setSelectedCollectionName] = useState('');
   const [amounts, setAmounts] = useState({});
   const [result, setResult] = useState(null);
 
@@ -58,8 +65,20 @@ export function BulkEntry() {
   });
 
   const parishes = data?.parishes || [];
+  const sources = data?.remittanceSources || [];
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: currentYear - 2019 }, (_, i) => currentYear - i);
+
+  // Collections belonging to the currently selected category (e.g. every
+  // individual National Collections item: Catechetical Week, Divine Mercy, etc.)
+  const collectionsInCategory = sources.filter(s => s.isActive && s.category === selectedCategory);
+  const needsCollectionPicker = collectionsInCategory.length > 1;
+
+  const handleCategoryChange = (value) => {
+    setSelectedCategory(value);
+    setSelectedCollectionName('');
+    setResult(null);
+  };
 
   const handleAmountChange = (parishId, value) => {
     setAmounts(prev => ({ ...prev, [parishId]: value }));
@@ -76,12 +95,18 @@ export function BulkEntry() {
       return;
     }
 
+    if (needsCollectionPicker && !selectedCollectionName) {
+      alert(`Please choose which ${selectedCategory} collection this is for`);
+      return;
+    }
+
     await submitBulk({
       variables: {
         input: {
           year: parseInt(selectedYear),
           month: parseInt(selectedMonth),
           collectionCategory: selectedCategory,
+          collectionName: needsCollectionPicker ? selectedCollectionName : undefined,
           entries,
         },
       },
@@ -127,11 +152,20 @@ export function BulkEntry() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px', backgroundColor: 'white', padding: '18px 20px', borderRadius: '12px', border: '1px solid #F5E3D7' }}>
         <div>
           <label style={{ fontSize: '11px', fontWeight: 600, color: '#A7A68B', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px', display: 'block' }}>Collection</label>
-          <select value={selectedCategory} onChange={e => setSelectedCategory(e.target.value)} style={selectStyle}>
+          <select value={selectedCategory} onChange={e => handleCategoryChange(e.target.value)} style={selectStyle}>
             <option value="">Select collection</option>
             {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
+        {needsCollectionPicker && (
+          <div>
+            <label style={{ fontSize: '11px', fontWeight: 600, color: '#A7A68B', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px', display: 'block' }}>Which {selectedCategory}?</label>
+            <select value={selectedCollectionName} onChange={e => { setSelectedCollectionName(e.target.value); setResult(null); }} style={selectStyle}>
+              <option value="">Select specific collection</option>
+              {collectionsInCategory.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+            </select>
+          </div>
+        )}
         <div>
           <label style={{ fontSize: '11px', fontWeight: 600, color: '#A7A68B', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px', display: 'block' }}>Year</label>
           <select value={selectedYear} onChange={e => setSelectedYear(e.target.value)} style={selectStyle}>
@@ -202,7 +236,7 @@ export function BulkEntry() {
         <Button
           variant="default"
           onClick={handleSubmit}
-          disabled={!selectedCategory || submitting || parishes.length === 0}
+          disabled={!selectedCategory || (needsCollectionPicker && !selectedCollectionName) || submitting || parishes.length === 0}
           style={{ backgroundColor: '#D3542A', color: 'white' }}
         >
           {submitting ? (

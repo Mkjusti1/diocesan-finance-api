@@ -158,10 +158,6 @@ export const resolvers = {
     },
   },
 
-  RemittanceSource: {
-    category: (parent) => getCollectionCategory(parent.name),
-  },
-
   RemittanceRecord: {
     parish: async (parent) => {
       if (parent._parishObj !== undefined) return parent._parishObj;
@@ -1042,7 +1038,7 @@ export const resolvers = {
     },
     bulkRecordRemittances: async (_, { input }, { user }) => {
       requireRole(user, 'ADMIN');
-      const { year, month, collectionCategory, collectionName, entries } = input;
+      const { year, month, collectionCategory, entries } = input;
       if (!entries || entries.length === 0) throw new Error('No entries provided');
 
       // Find collections matching the selected category
@@ -1059,23 +1055,8 @@ export const resolvers = {
         throw new Error(`No active collections found for category "${collectionCategory}"`);
       }
 
-      let targetCollection;
-      if (collectionName) {
-        // Caller specified exactly which collection this is (required whenever
-        // a category, like National Collections, contains more than one collection).
-        targetCollection = matchingCollections.find(
-          c => c.name.toLowerCase().trim() === collectionName.toLowerCase().trim()
-        );
-        if (!targetCollection) {
-          throw new Error(`"${collectionName}" is not an active collection under "${collectionCategory}"`);
-        }
-      } else if (matchingCollections.length > 1) {
-        throw new Error(
-          `"${collectionCategory}" has ${matchingCollections.length} collections (${matchingCollections.map(c => c.name).join(', ')}). Specify collectionName.`
-        );
-      } else {
-        targetCollection = matchingCollections[0];
-      }
+      // Use the first matching collection for line items
+      const targetCollection = matchingCollections[0];
 
       const client = await pool.connect();
       let createdCount = 0;

@@ -284,7 +284,7 @@ export async function parseNationalCollections(filePath, year, uploadedByUserId)
 
 // Parse Yearly Columns CSV
 // Format: rows = parishes, columns = years (e.g. 2023, 2024, 2025), values = amounts
-export async function parseYearlyColumnsCSV(filePath, collectionName, uploadedByUserId) {
+export async function parseYearlyColumnsCSV(filePath, collectionName, uploadedByUserId, filterYear) {
   const content = await readFile(filePath, 'utf-8');
   const firstLine = content.split('\n')[0];
   const delimiter = firstLine.includes('\t') ? '\t' : ',';
@@ -307,7 +307,7 @@ export async function parseYearlyColumnsCSV(filePath, collectionName, uploadedBy
   if (!parishCol) throw new Error(`Could not find parish name column. Headers found: ${headers.join(', ')}`);
 
   // Find year columns (4-digit numbers)
-  const yearCols = {};
+  let yearCols = {};
   headers.forEach(h => {
     const trimmed = h.trim();
     if (/^\d{4}$/.test(trimmed)) {
@@ -317,6 +317,16 @@ export async function parseYearlyColumnsCSV(filePath, collectionName, uploadedBy
 
   if (Object.keys(yearCols).length === 0) {
     throw new Error(`No year columns found. Headers: ${headers.join(', ')}`);
+  }
+
+  if (filterYear) {
+    const narrowed = Object.fromEntries(
+      Object.entries(yearCols).filter(([, y]) => y === parseInt(filterYear))
+    );
+    if (Object.keys(narrowed).length === 0) {
+      throw new Error(`No column for year ${filterYear} found in this file. Years available: ${Object.values(yearCols).join(', ')}`);
+    }
+    yearCols = narrowed;
   }
 
   const records = [];
