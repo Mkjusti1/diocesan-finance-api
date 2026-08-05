@@ -8,11 +8,7 @@ const currentYear = new Date().getFullYear();
 const YEARS = Array.from({ length: currentYear - 2022 }, (_, i) => currentYear - i);
 
 function sortParishSummaries(summaries) {
-  return [...summaries].sort((a, b) => {
-    if (a.parish.name === 'Aguleri: St. Joseph') return -1;
-    if (b.parish.name === 'Aguleri: St. Joseph') return 1;
-    return (b.totalCollected || 0) - (a.totalCollected || 0);
-  });
+  return [...summaries].sort((a, b) => (b.totalCollected || 0) - (a.totalCollected || 0));
 }
 
 export function Dashboard() {
@@ -126,7 +122,7 @@ export function Dashboard() {
       }}>
         <div style={{ padding: '20px 24px', borderBottom: '1px solid #F5E3D7' }}>
           <p style={{ fontSize: '13px', fontWeight: 700, color: '#8B4C39', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-            Parish Summaries — {selectedYear}
+            Best Performing Parishes — {selectedYear}
           </p>
         </div>
 
@@ -141,7 +137,7 @@ export function Dashboard() {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ backgroundColor: '#FFF9F2', borderBottom: '2px solid #F5E3D7' }}>
-                  {['S/N', 'Parish', 'Total Collected', 'Months Reported', 'Status'].map(h => (
+                  {['S/N', 'Parish', 'Total Collected'].map(h => (
                     <th key={h} style={{
                       textAlign: 'left', padding: '12px 20px',
                       fontSize: '11px', fontWeight: 700, color: '#A7A68B',
@@ -178,23 +174,6 @@ export function Dashboard() {
                     <td style={{ padding: '12px 20px' }}>
                       <span style={{ fontSize: '13px', fontWeight: 700, color: '#D3542A' }}>
                         {formatCurrency(s.totalCollected)}
-                      </span>
-                    </td>
-                    <td style={{ padding: '12px 20px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span style={{ fontSize: '13px', fontWeight: 700, color: '#8B4C39' }}>{s.monthsReported}</span>
-                        <span style={{ fontSize: '12px', color: '#A7A68B' }}>/ 12 months</span>
-                      </div>
-                    </td>
-                    <td style={{ padding: '12px 20px' }}>
-                      <span style={{
-                        display: 'inline-flex', alignItems: 'center',
-                        padding: '3px 10px', borderRadius: '20px',
-                        fontSize: '11px', fontWeight: 700,
-                        backgroundColor: s.monthsReported === 12 ? '#dcfce7' : s.monthsReported > 0 ? '#fef3c7' : '#fee2e2',
-                        color: s.monthsReported === 12 ? '#166534' : s.monthsReported > 0 ? '#92400e' : '#991b1b'
-                      }}>
-                        {s.monthsReported === 12 ? 'Complete' : s.monthsReported > 0 ? 'Partial' : 'Missing'}
                       </span>
                     </td>
                   </tr>

@@ -445,12 +445,15 @@ export const resolvers = {
           [year]
         ),
         pool.query(
-          `SELECT c.id, c.name, c.description, c.is_active, c.created_at, COALESCE(SUM(rli.amount), 0) as total
+          `SELECT c.id, c.name, c.description, c.is_active, c.created_at,
+           COALESCE((
+             SELECT SUM(rli.amount)
+             FROM remittance_line_items rli
+             JOIN remittance_records rr ON rr.id = rli.remittance_record_id
+             WHERE rli.collection_id = c.id AND rr.year = $1
+           ), 0) as total
            FROM collections c
-           LEFT JOIN remittance_line_items rli ON rli.collection_id = c.id
-           LEFT JOIN remittance_records rr ON rr.id = rli.remittance_record_id AND rr.year = $1
            WHERE c.is_active = true
-           GROUP BY c.id, c.name, c.description, c.is_active, c.created_at
            ORDER BY c.name`,
           [year]
         ),
