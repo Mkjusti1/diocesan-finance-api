@@ -3,8 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, ReceiptText, ShieldAlert,
   Users, LogOut, UploadCloud, KeyRound,
-  BookOpen, GraduationCap,
-  Wheat, Landmark, HeartHandshake, Building2,
+  BookOpen, Building2,
   CreditCard, ChevronLeft, ChevronRight,
   Table
 } from 'lucide-react';
@@ -14,12 +13,8 @@ import dioceseLogo from '@/assets/diocese-logo.jpg';
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard', roles: ['ADMIN','BISHOP'] },
   { to: '/parishes', icon: Building2, label: 'Parishes', roles: ['ADMIN','BISHOP'] },
-  { to: '/rectory', icon: ReceiptText, label: 'Rectory', roles: ['ADMIN','BISHOP'] },
+  { to: '/collections', icon: ReceiptText, label: 'Collections', roles: ['ADMIN','BISHOP'] },
   { to: '/national-collections', icon: BookOpen, label: 'National Collections', roles: ['ADMIN','BISHOP'] },
-  { to: '/harvest-bazaar', icon: Wheat, label: 'Harvest & Bazaar', roles: ['ADMIN','BISHOP'] },
-  { to: '/cathedraticum', icon: Landmark, label: 'Cathedraticum', roles: ['ADMIN','BISHOP'] },
-  { to: '/project-sunday', icon: HeartHandshake, label: 'Project Sunday', roles: ['ADMIN','BISHOP'] },
-  { to: '/seminary-collections', icon: GraduationCap, label: 'Seminary Collections', roles: ['ADMIN','BISHOP'] },
   { to: '/debtors', icon: ShieldAlert, label: 'Debtors', roles: ['ADMIN','BISHOP'] },
   { to: '/record-payment', icon: CreditCard, label: 'Record Payment', roles: ['ADMIN'] },
   { to: '/bulk-entry', icon: Table, label: 'Bulk Entry', roles: ['ADMIN'] },

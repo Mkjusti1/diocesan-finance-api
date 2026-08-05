@@ -8,6 +8,17 @@ const currentYear = new Date().getFullYear();
 const YEARS = Array.from({ length: currentYear - 2022 }, (_, i) => currentYear - i);
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
+// Single source of truth for the collections on this page.
+// type 'monthly' -> table columns are Months, filtered by a Year dropdown
+// type 'annual'  -> table columns are Years, no Year dropdown needed (shows every year)
+const COLLECTIONS = [
+  { key: 'rectory', name: 'Rectory', title: 'Rectory', type: 'monthly' },
+  { key: 'harvest-bazaar', name: 'Harvest & Bazaar', title: 'Harvest & Bazaar', type: 'annual' },
+  { key: 'cathedraticum', name: 'Cathedraticum', title: 'Cathedraticum', type: 'annual' },
+  { key: 'project-sunday', name: 'Project Sunday', title: 'Project Sunday', type: 'annual' },
+  { key: 'seminary-collections', name: 'Seminary Collections', title: 'Seminary Collections', type: 'annual' },
+];
+
 function ErrorBanner({ error, onRetry }) {
   if (!error) return null;
   return (
@@ -66,17 +77,35 @@ function sortParishes(parishes) {
   });
 }
 
-export function CollectionPage({ title, collectionName, type = 'monthly' }) {
+const selectStyle = {
+  height: '36px', borderRadius: '8px', border: '1px solid #F5E3D7',
+  padding: '0 12px', fontSize: '13px', backgroundColor: 'white',
+  outline: 'none', color: '#1a0a06', cursor: 'pointer', fontWeight: 500
+};
+
+export function CollectionPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+
+  const collectionKeyFromUrl = searchParams.get('collection');
+  const selectedCollection = COLLECTIONS.find(c => c.key === collectionKeyFromUrl) || COLLECTIONS[0];
+
   const yearFromUrl = parseInt(searchParams.get('year')) || currentYear;
   const [selectedYear, setSelectedYear] = useState(yearFromUrl);
 
-  useEffect(() => {
-    setSearchParams({ year: selectedYear }, { replace: true });
-  }, [selectedYear]);
+  const isAnnual = selectedCollection.type === 'annual';
 
-  const isAnnual = type === 'annual';
+  useEffect(() => {
+    const params = { collection: selectedCollection.key };
+    if (!isAnnual) params.year = selectedYear;
+    setSearchParams(params, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCollection.key, selectedYear]);
+
+  const handleCollectionChange = (key) => {
+    const next = COLLECTIONS.find(c => c.key === key) || COLLECTIONS[0];
+    setSearchParams({ collection: next.key, ...(next.type !== 'annual' ? { year: selectedYear } : {}) }, { replace: true });
+  };
 
   const { data, loading, error, refetch } = useQuery(isAnnual ? GET_ALL_COLLECTION_DATA : GET_COLLECTION_DATA, {
     variables: isAnnual ? {} : { year: selectedYear },
@@ -84,48 +113,50 @@ export function CollectionPage({ title, collectionName, type = 'monthly' }) {
   });
 
   const parishes = data?.parishes || [];
-  const sortedParishes = sortParishes(parishes).filter(p => (p.createdYear || 2020) <= selectedYear);
+  const sortedParishes = sortParishes(parishes).filter(p => (p.createdYear || 2020) <= (isAnnual ? currentYear : selectedYear));
   const sources = data?.remittanceSources || [];
   const source = sources.find(s =>
-    s.name.toLowerCase().trim() === collectionName.toLowerCase().trim()
+    s.name.toLowerCase().trim() === selectedCollection.name.toLowerCase().trim()
   );
   const allRecords = data?.remittanceRecords || [];
+
+  const CollectionDropdown = (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+      <label style={{ fontSize: '12px', fontWeight: 600, color: '#A7A68B', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Collection</label>
+      <select value={selectedCollection.key} onChange={e => handleCollectionChange(e.target.value)} style={selectStyle}>
+        {COLLECTIONS.map(c => <option key={c.key} value={c.key}>{c.name}</option>)}
+      </select>
+    </div>
+  );
 
   if (isAnnual) {
     const annualRecords = allRecords.filter(r =>
       r.month === 0 && r.lineItems?.some(li =>
-        li.source.name.toLowerCase().trim() === collectionName.toLowerCase().trim()
+        li.source.name.toLowerCase().trim() === selectedCollection.name.toLowerCase().trim()
       )
     );
 
-    const nationalSources = sources.filter(s =>
-      allRecords.some(r => r.month === 0 && r.lineItems?.some(li => li.source.id === s.id))
-    );
-
-    const yearSet = [...new Set(allRecords.filter(r => r.month === 0).map(r => r.year))].sort((a,b) => a-b);
+    const yearSet = [...new Set(allRecords.filter(r => r.month === 0).map(r => r.year))].sort((a, b) => a - b);
     const grid = {};
     annualRecords.forEach(r => {
-      const item = r.lineItems?.find(li => li.source.name.toLowerCase().trim() === collectionName.toLowerCase().trim());
+      const item = r.lineItems?.find(li => li.source.name.toLowerCase().trim() === selectedCollection.name.toLowerCase().trim());
       if (!grid[r.parish.id]) grid[r.parish.id] = {};
       grid[r.parish.id][r.year] = item?.amount || 0;
     });
 
     const grandTotal = annualRecords.reduce((sum, r) => {
-      const item = r.lineItems?.find(li => li.source.name.toLowerCase().trim() === collectionName.toLowerCase().trim());
+      const item = r.lineItems?.find(li => li.source.name.toLowerCase().trim() === selectedCollection.name.toLowerCase().trim());
       return sum + (item?.amount || 0);
     }, 0);
 
-    const selectStyle = {
-      height: '36px', borderRadius: '8px', border: '1px solid #F5E3D7',
-      padding: '0 12px', fontSize: '13px', backgroundColor: 'white',
-      outline: 'none', color: '#1a0a06', cursor: 'pointer', fontWeight: 500
-    };
-
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-        <div>
-          <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#1a0a06', marginBottom: '4px' }}>{title}</h1>
-          <p style={{ fontSize: '13px', color: '#A7A68B' }}>Annual collection across all parishes</p>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+          <div>
+            <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#1a0a06', marginBottom: '4px' }}>{selectedCollection.title}</h1>
+            <p style={{ fontSize: '13px', color: '#A7A68B' }}>Annual collection across all parishes</p>
+          </div>
+          {CollectionDropdown}
         </div>
 
         <ErrorBanner error={error} onRetry={refetch} />
@@ -150,7 +181,7 @@ export function CollectionPage({ title, collectionName, type = 'monthly' }) {
             <div style={{ padding: '60px', textAlign: 'center', fontSize: '13px', color: '#A7A68B' }}>Loading...</div>
           ) : !source ? (
             <div style={{ padding: '60px', textAlign: 'center' }}>
-              <p style={{ fontSize: '14px', fontWeight: 600, color: '#8B4C39', marginBottom: '8px' }}>No &quot;{title}&quot; data found</p>
+              <p style={{ fontSize: '14px', fontWeight: 600, color: '#8B4C39', marginBottom: '8px' }}>No &quot;{selectedCollection.title}&quot; data found</p>
               <p style={{ fontSize: '13px', color: '#A7A68B' }}>Upload a National Collections file to see data here</p>
             </div>
           ) : (
@@ -180,7 +211,7 @@ export function CollectionPage({ title, collectionName, type = 'monthly' }) {
                           {parish.name}
                         </td>
                         {yearSet.map(y => (
-                          <td key={y} style={{ padding: '11px 16px', textAlign: 'right', fontSize: '13px', fontWeight: yearData[y] ? 700 : 400, color: yearData[y] ? '#8B4C39' : '#E1D5CD', whiteSpace: 'nowrap' }}>
+                          <td key={y} style={{ padding: '11px 16px', textAlign: 'right', fontSize: '12px', fontWeight: yearData[y] ? 700 : 400, color: yearData[y] ? '#8B4C39' : '#E1D5CD', whiteSpace: 'nowrap' }}>
                             {yearData[y] ? formatCurrency(yearData[y]) : '—'}
                           </td>
                         ))}
@@ -218,41 +249,38 @@ export function CollectionPage({ title, collectionName, type = 'monthly' }) {
 
   const monthlyRecords = allRecords.filter(r =>
     r.month >= 1 && r.month <= 12 &&
-    r.lineItems?.some(li => li.source.name.toLowerCase().trim() === collectionName.toLowerCase().trim())
+    r.lineItems?.some(li => li.source.name.toLowerCase().trim() === selectedCollection.name.toLowerCase().trim())
   );
 
   const grid = {};
   monthlyRecords.forEach(r => {
-    const item = r.lineItems?.find(li => li.source.name.toLowerCase().trim() === collectionName.toLowerCase().trim());
+    const item = r.lineItems?.find(li => li.source.name.toLowerCase().trim() === selectedCollection.name.toLowerCase().trim());
     if (!grid[r.parish.id]) grid[r.parish.id] = {};
     grid[r.parish.id][r.month] = item?.amount || 0;
   });
 
   const grandTotal = monthlyRecords.reduce((sum, r) => {
-    const item = r.lineItems?.find(li => li.source.name.toLowerCase().trim() === collectionName.toLowerCase().trim());
+    const item = r.lineItems?.find(li => li.source.name.toLowerCase().trim() === selectedCollection.name.toLowerCase().trim());
     return sum + (item?.amount || 0);
   }, 0);
-
-  const selectStyle = {
-    height: '36px', borderRadius: '8px', border: '1px solid #F5E3D7',
-    padding: '0 12px', fontSize: '13px', backgroundColor: 'white',
-    outline: 'none', color: '#1a0a06', cursor: 'pointer', fontWeight: 500
-  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#1a0a06', marginBottom: '4px' }}>{title}</h1>
+          <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#1a0a06', marginBottom: '4px' }}>{selectedCollection.title}</h1>
           <p style={{ fontSize: '13px', color: '#A7A68B' }}>
             {loading ? 'Loading...' : `${monthlyRecords.length} records · ${parishes.length} parishes`}
           </p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <label style={{ fontSize: '12px', fontWeight: 600, color: '#A7A68B', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Year</label>
-          <select value={selectedYear} onChange={e => setSelectedYear(parseInt(e.target.value))} style={selectStyle}>
-            {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
-          </select>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+          {CollectionDropdown}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <label style={{ fontSize: '12px', fontWeight: 600, color: '#A7A68B', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Year</label>
+            <select value={selectedYear} onChange={e => setSelectedYear(parseInt(e.target.value))} style={selectStyle}>
+              {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+          </div>
         </div>
       </div>
 
@@ -278,8 +306,8 @@ export function CollectionPage({ title, collectionName, type = 'monthly' }) {
           <div style={{ padding: '60px', textAlign: 'center', fontSize: '13px', color: '#A7A68B' }}>Loading...</div>
         ) : !source ? (
           <div style={{ padding: '60px', textAlign: 'center' }}>
-            <p style={{ fontSize: '14px', fontWeight: 600, color: '#8B4C39', marginBottom: '8px' }}>No &quot;{title}&quot; collection found</p>
-            <p style={{ fontSize: '13px', color: '#A7A68B' }}>Upload a Rectory file with collection name &quot;{collectionName}&quot; to see data here</p>
+            <p style={{ fontSize: '14px', fontWeight: 600, color: '#8B4C39', marginBottom: '8px' }}>No &quot;{selectedCollection.title}&quot; collection found</p>
+            <p style={{ fontSize: '13px', color: '#A7A68B' }}>Upload a Rectory file with collection name &quot;{selectedCollection.name}&quot; to see data here</p>
           </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>

@@ -28,12 +28,13 @@ export default function App() {
               <Route path="/" element={<Dashboard />} />
               <Route path="/parishes" element={<Parishes />} />
               <Route path="/parishes/:id" element={<ParishDetail />} />
-              <Route path="/rectory" element={<CollectionPage collectionName="Rectory" title="Rectory" />} />
+              <Route path="/collections" element={<CollectionPage />} />
               <Route path="/national-collections" element={<NationalCollectionsPage />} />
-              <Route path="/harvest-bazaar" element={<CollectionPage collectionName="Harvest & Bazaar" title="Harvest & Bazaar" type="annual" />} />
-              <Route path="/cathedraticum" element={<CollectionPage collectionName="Cathedraticum" title="Cathedraticum" type="annual" />} />
-              <Route path="/project-sunday" element={<CollectionPage collectionName="Project Sunday" title="Project Sunday" type="annual" />} />
-              <Route path="/seminary-collections" element={<CollectionPage collectionName="Seminary Collections" title="Seminary Collections" type="annual" />} />
+              <Route path="/rectory" element={<Navigate to="/collections?collection=rectory" replace />} />
+              <Route path="/harvest-bazaar" element={<Navigate to="/collections?collection=harvest-bazaar" replace />} />
+              <Route path="/cathedraticum" element={<Navigate to="/collections?collection=cathedraticum" replace />} />
+              <Route path="/project-sunday" element={<Navigate to="/collections?collection=project-sunday" replace />} />
+              <Route path="/seminary-collections" element={<Navigate to="/collections?collection=seminary-collections" replace />} />
               <Route path="/record-payment" element={<RecordPayment />} />\n            <Route path="/bulk-entry" element={<BulkEntry />} />
               <Route path="/debtors" element={<Debtors />} />
               <Route path="/upload" element={<UploadPage />} />
