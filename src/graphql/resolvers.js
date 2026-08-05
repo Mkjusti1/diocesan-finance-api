@@ -516,15 +516,28 @@ export const resolvers = {
 
       const { rows } = await pool.query(
         `SELECT p.*,
-         COALESCE(SUM(rli.amount), 0) as total_collected,
-         COUNT(DISTINCT CASE WHEN rr.month BETWEEN 1 AND 12 THEN rr.month END) as months_reported,
-         MAX(rr.created_at) as last_reported,
-         COALESCE(SUM(d.balance), 0) as outstanding_balance
+         COALESCE((
+           SELECT SUM(rli.amount)
+           FROM remittance_records rr
+           JOIN remittance_line_items rli ON rli.remittance_record_id = rr.id
+           WHERE rr.parish_id = p.id AND rr.year = $1
+         ), 0) as total_collected,
+         (
+           SELECT COUNT(DISTINCT rr.month)
+           FROM remittance_records rr
+           WHERE rr.parish_id = p.id AND rr.year = $1 AND rr.month BETWEEN 1 AND 12
+         ) as months_reported,
+         (
+           SELECT MAX(rr.created_at)
+           FROM remittance_records rr
+           WHERE rr.parish_id = p.id AND rr.year = $1
+         ) as last_reported,
+         COALESCE((
+           SELECT SUM(d.balance)
+           FROM debtors d
+           WHERE d.parish_id = p.id AND d.year = $1 AND d.is_paid = false
+         ), 0) as outstanding_balance
          FROM parishes p
-         LEFT JOIN remittance_records rr ON p.id = rr.parish_id AND rr.year = $1
-         LEFT JOIN remittance_line_items rli ON rr.id = rli.remittance_record_id
-         LEFT JOIN debtors d ON p.id = d.parish_id AND d.year = $1 AND d.is_paid = false
-         GROUP BY p.id
          ORDER BY total_collected DESC`,
         [year]
       );
