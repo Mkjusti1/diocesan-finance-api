@@ -359,12 +359,6 @@ export const resolvers = {
 
       const { rows } = await pool.query(query, params);
 
-      // Robust cathedral sort helper
-      const isCathedral = (name) => {
-        const n = (name || '').toLowerCase().replace(/\\./g, '');
-        return n.includes('aguleri') && n.includes('joseph');
-      };
-
       const result = rows.map(row => ({
         id: row.id,
         year: row.year,
@@ -396,14 +390,6 @@ export const resolvers = {
           createdAt: row.c_created_at?.toISOString(),
         } : null,
       }));
-
-      result.sort((a, b) => {
-        const aCat = isCathedral(a.parish?.name);
-        const bCat = isCathedral(b.parish?.name);
-        if (aCat && !bCat) return -1;
-        if (!aCat && bCat) return 1;
-        return (a.parish?.name || '').localeCompare(b.parish?.name || '');
-      });
 
       return result;
     },

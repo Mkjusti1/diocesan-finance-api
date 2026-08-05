@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery, useMutation } from '@apollo/client/react';
+import { useLazyQuery, useMutation } from '@apollo/client/react';
 import { gql } from '@apollo/client';
 import { AlertCircle, CheckCircle, RefreshCw, Loader2, Search } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
@@ -178,10 +178,8 @@ export function Debtors() {
   const [month, setMonth] = useState(null);
   const [hasLoaded, setHasLoaded] = useState(false);
 
-  const { data, loading, error, refetch } = useQuery(GET_DEBTORS, {
-    variables: { year, month, overdueOnly: true },
+  const [loadDebtors, { data, loading, error }] = useLazyQuery(GET_DEBTORS, {
     fetchPolicy: 'network-only',
-    skip: true, // Don't auto-run on mount
   });
 
   const [regenerate, { data: regenData, loading: regenLoading, error: regenError }] = useMutation(REGENERATE_DEBTORS);
@@ -192,12 +190,12 @@ export function Debtors() {
 
   const handleLoad = async () => {
     setHasLoaded(true);
-    await refetch({ year, month, overdueOnly: true });
+    await loadDebtors({ variables: { year, month, overdueOnly: true } });
   };
 
   const handleRegenerate = async () => {
     await regenerate({ variables: { year } });
-    await refetch({ year, month, overdueOnly: true });
+    await loadDebtors({ variables: { year, month, overdueOnly: true } });
   };
 
   const selectStyle = {
