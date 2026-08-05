@@ -124,7 +124,7 @@ function TabularSection({ title, subtitle, columns }) {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', tableLayout: 'fixed' }}>
           <colgroup>
             {columns.map((_, i) => (
-              <col key={`cg-${i}`} span={2} style={{ minWidth: '130px' }} />
+              <col key={`cg-${i}`} span={2} style={{ minWidth: '170px' }} />
             ))}
           </colgroup>
           <thead>
@@ -150,14 +150,14 @@ function TabularSection({ title, subtitle, columns }) {
                   return [
                     <td key={`l-${rowIdx}-${colIdx}`} style={{
                       padding: '5px 10px', borderBottom: '1px solid #F5E3D7', borderRight: '1px solid #F5E3D7',
-                      color: '#1a0a06', whiteSpace: 'nowrap', width: '50%',
+                      color: '#1a0a06', whiteSpace: 'normal', wordBreak: 'break-word', width: '50%',
                     }}>
                       {left ? `${rowIdx + 1}. ${left}` : ''}
                     </td>,
                     <td key={`r-${rowIdx}-${colIdx}`} style={{
                       padding: '5px 10px', borderBottom: '1px solid #F5E3D7',
                       borderRight: colIdx < columns.length - 1 ? '1px solid #F5E3D7' : 'none',
-                      color: '#1a0a06', whiteSpace: 'nowrap', width: '50%',
+                      color: '#1a0a06', whiteSpace: 'normal', wordBreak: 'break-word', width: '50%',
                     }}>
                       {right ? `${rowIdx + 1 + mid}. ${right}` : ''}
                     </td>,
