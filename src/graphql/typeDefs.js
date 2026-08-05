@@ -31,6 +31,7 @@ export const typeDefs = gql`
     description: String
     isActive: Boolean!
     createdYear: Int\n  createdAt: String!
+    category: String!
   }
 
   type RemittanceLineItem {

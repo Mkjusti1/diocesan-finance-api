@@ -10,11 +10,11 @@ const YEARS = Array.from({ length: currentYear - 2022 }, (_, i) => currentYear -
 const GET_NATIONAL_DATA = gql`
   query NationalData {
     parishes { id name }
-    remittanceSources { id name }
+    remittanceSources { id name category }
     remittanceRecords {
       id month year
       parish { id name }
-      lineItems { amount source { id name } }
+      lineItems { amount source { id name category } }
     }
   }
 `;
@@ -54,12 +54,15 @@ export function NationalCollectionsPage() {
   const annualRecords = allRecords.filter(r => r.month === 0 && r.year === selectedYear);
 
   const nationalSourceIds = new Set();
-  annualRecords.forEach(r => r.lineItems?.forEach(li => nationalSourceIds.add(li.source.id)));
-  const nationalSources = allSources.filter(s => nationalSourceIds.has(s.id));
+  annualRecords.forEach(r => r.lineItems?.forEach(li => {
+    if (li.source.category === 'National Collections') nationalSourceIds.add(li.source.id);
+  }));
+  const nationalSources = allSources.filter(s => s.category === 'National Collections' && nationalSourceIds.has(s.id));
 
   const grid = {};
   annualRecords.forEach(r => {
     r.lineItems?.forEach(li => {
+      if (li.source.category !== 'National Collections') return;
       if (!grid[r.parish.id]) grid[r.parish.id] = {};
       grid[r.parish.id][li.source.id] = li.amount;
     });

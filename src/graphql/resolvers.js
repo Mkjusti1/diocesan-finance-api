@@ -158,6 +158,10 @@ export const resolvers = {
     },
   },
 
+  RemittanceSource: {
+    category: (parent) => getCollectionCategory(parent.name),
+  },
+
   RemittanceRecord: {
     parish: async (parent) => {
       if (parent._parishObj !== undefined) return parent._parishObj;
