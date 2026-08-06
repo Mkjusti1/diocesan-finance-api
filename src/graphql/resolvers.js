@@ -334,7 +334,7 @@ export const resolvers = {
       return mapRemittanceRecord(rows[0]);
     },
 
-        debtors: async (_, { year, month, overdueOnly }, { user }) => {
+        debtors: async (_, { year, month, years, months, collectionName, overdueOnly }, { user }) => {
       requireRole(user, 'ADMIN', 'BISHOP');
 
       // Single optimized query with JOINs — no N+1
@@ -355,8 +355,14 @@ export const resolvers = {
       `;
       const params = [];
 
-      if (year) { params.push(year); query += ` AND d.year = $${params.length}`; }
-      if (month !== undefined && month !== null) { params.push(month); query += ` AND d.month = $${params.length}`; }
+      if (years && years.length > 0) { params.push(years); query += ` AND d.year = ANY($${params.length})`; }
+      else if (year) { params.push(year); query += ` AND d.year = $${params.length}`; }
+
+      if (months && months.length > 0) { params.push(months); query += ` AND d.month = ANY($${params.length})`; }
+      else if (month !== undefined && month !== null) { params.push(month); query += ` AND d.month = $${params.length}`; }
+
+      if (collectionName) { params.push(collectionName); query += ` AND LOWER(c.name) = LOWER($${params.length})`; }
+
       if (overdueOnly) { query += ' AND d.is_paid = false'; }
 
       query += ' ORDER BY d.year DESC, d.month DESC, p.name';
@@ -979,15 +985,19 @@ export const resolvers = {
           record = rows[0];
         }
 
-        await client.query(
+        // Add this payment to whatever was already recorded for this parish/collection/period,
+        // rather than overwriting it — Record Payment logs individual payments received.
+        const { rows: lineItemRows } = await client.query(
           `INSERT INTO remittance_line_items (remittance_record_id, collection_id, amount)
            VALUES ($1, $2, $3)
            ON CONFLICT (remittance_record_id, collection_id)
-           DO UPDATE SET amount = EXCLUDED.amount, updated_at = NOW()`,
+           DO UPDATE SET amount = remittance_line_items.amount + EXCLUDED.amount, updated_at = NOW()
+           RETURNING amount`,
           [record.id, collectionId, amount]
         );
+        const cumulativeAmount = parseFloat(lineItemRows[0].amount);
 
-        const isPaid = amount > 0;
+        const isPaid = cumulativeAmount > 0;
         const { rows: debtorRows } = await client.query(
           `INSERT INTO debtors (parish_id, collection_id, year, month, expected_amount, actual_amount, balance, is_paid)
            VALUES ($1, $2, $3, $4, $5, $5, 0, $6)
@@ -999,7 +1009,7 @@ export const resolvers = {
            is_paid = EXCLUDED.is_paid,
            updated_at = NOW()
            RETURNING *`,
-          [parishId, collectionId, year, month, amount, isPaid]
+          [parishId, collectionId, year, month, cumulativeAmount, isPaid]
         );
 
         await client.query('COMMIT');

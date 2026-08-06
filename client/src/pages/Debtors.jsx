@@ -1,14 +1,14 @@
-import { useState } from 'react';
-import { useLazyQuery, useMutation } from '@apollo/client/react';
+import { useState, useRef, useEffect } from 'react';
+import { useLazyQuery, useMutation, useQuery } from '@apollo/client/react';
 import { gql } from '@apollo/client';
-import { AlertCircle, CheckCircle, RefreshCw, Loader2, Search } from 'lucide-react';
+import { AlertCircle, CheckCircle, RefreshCw, Loader2, Search, ChevronDown, Copy, Check } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
 const CURRENT_YEAR = new Date().getFullYear();
 
 const GET_DEBTORS = gql`
-  query GetDebtors($year: Int, $month: Int, $overdueOnly: Boolean) {
-    debtors(year: $year, month: $month, overdueOnly: $overdueOnly) {
+  query GetDebtors($years: [Int!], $months: [Int!], $collectionName: String, $overdueOnly: Boolean) {
+    debtors(years: $years, months: $months, collectionName: $collectionName, overdueOnly: $overdueOnly) {
       id
       year
       month
@@ -27,6 +27,17 @@ const GET_DEBTORS = gql`
   }
 `;
 
+const GET_SOURCES = gql`
+  query GetDebtorSources {
+    remittanceSources {
+      id
+      name
+      category
+      isActive
+    }
+  }
+`;
+
 const REGENERATE_DEBTORS = gql`
   mutation RegenerateDebtors($year: Int) {
     regenerateDebtors(year: $year) {
@@ -41,80 +52,100 @@ const MONTH_NAMES = [
   'July', 'August', 'September', 'October', 'November', 'December'
 ];
 
-const YEARLY_COLLECTIONS = ['Harvest & Bazaar', 'Cathedraticum', 'Project Sunday', 'Seminary Collections'];
+const CATEGORIES = [
+  'Rectory',
+  'National Collections',
+  'Harvest & Bazaar',
+  'Cathedraticum',
+  'Project Sunday',
+  'Seminary Collections',
+];
 
-function processDebtors(debtors, selectedYear) {
-  const sections = [];
+const YEAR_OPTIONS = Array.from({ length: 8 }, (_, i) => CURRENT_YEAR + 2 - i); // a couple years ahead, several back
 
-  // 1. Rectory — group by month
-  const rectoryMonths = {};
-  for (let m = 1; m <= 12; m++) rectoryMonths[m] = [];
+const selectStyle = {
+  height: '38px',
+  borderRadius: '8px',
+  border: '1px solid #F5E3D7',
+  padding: '0 12px',
+  fontSize: '13px',
+  color: '#1a0a06',
+  backgroundColor: 'white',
+  outline: 'none',
+  cursor: 'pointer',
+};
 
-  for (const d of debtors) {
-    if (d.collection?.name !== 'Rectory' || d.isPaid) continue;
-    if (selectedYear && d.year !== selectedYear) continue;
-    if (rectoryMonths[d.month]) rectoryMonths[d.month].push(d.parish.name);
-  }
+function MultiSelect({ label, options, selected, onChange, placeholder }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
 
-  const rectoryColumns = Object.entries(rectoryMonths)
-    .filter(([, parishes]) => parishes.length > 0)
-    .map(([month, parishes]) => ({
-      label: MONTH_NAMES[month],
-      parishes: [...new Set(parishes)].sort(),
-    }));
-
-  if (rectoryColumns.length > 0) {
-    sections.push({ title: 'Rectory', subtitle: String(selectedYear || ''), columns: rectoryColumns });
-  }
-
-  // 2. National Collections
-  const nationalMap = {};
-  for (const d of debtors) {
-    const cName = d.collection?.name;
-    if (!cName || cName === 'Rectory' || YEARLY_COLLECTIONS.includes(cName)) continue;
-    if (d.isPaid) continue;
-    if (selectedYear && d.year !== selectedYear) continue;
-    if (!nationalMap[cName]) nationalMap[cName] = [];
-    nationalMap[cName].push(d.parish.name);
-  }
-
-  const nationalColumns = Object.entries(nationalMap)
-    .map(([label, parishes]) => ({ label, parishes: [...new Set(parishes)].sort() }))
-    .sort((a, b) => a.label.localeCompare(b.label));
-
-  if (nationalColumns.length > 0) {
-    sections.push({ title: 'National Collections', subtitle: String(selectedYear || ''), columns: nationalColumns });
-  }
-
-  // 3. Yearly collections — only 2026+
-  for (const collName of YEARLY_COLLECTIONS) {
-    const yearMap = {};
-    for (const d of debtors) {
-      if (d.collection?.name !== collName || d.isPaid) continue;
-      if (d.year < CURRENT_YEAR) continue;
-      if (!yearMap[d.year]) yearMap[d.year] = [];
-      yearMap[d.year].push(d.parish.name);
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
     }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
-    const yearColumns = Object.entries(yearMap)
-      .sort(([a], [b]) => parseInt(a) - parseInt(b))
-      .map(([year, parishes]) => ({ label: year, parishes: [...new Set(parishes)].sort() }));
+  const toggle = (val) => {
+    if (selected.includes(val)) onChange(selected.filter(v => v !== val));
+    else onChange([...selected, val]);
+  };
 
-    if (yearColumns.length > 0) {
-      sections.push({ title: collName, subtitle: '', columns: yearColumns });
-    }
-  }
+  const summary = selected.length === 0
+    ? placeholder
+    : selected.length <= 3
+      ? selected.map(v => options.find(o => o.value === v)?.label || v).join(', ')
+      : `${selected.length} selected`;
 
-  return sections;
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#8B4C39', marginBottom: '4px' }}>{label}</label>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        style={{
+          ...selectStyle, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          gap: '8px', minWidth: '180px', color: selected.length ? '#1a0a06' : '#A7A68B',
+        }}
+      >
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{summary}</span>
+        <ChevronDown size={14} />
+      </button>
+      {open && (
+        <div style={{
+          position: 'absolute', top: '100%', left: 0, marginTop: '4px', zIndex: 10,
+          backgroundColor: 'white', border: '1px solid #F5E3D7', borderRadius: '8px',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.1)', minWidth: '200px', maxHeight: '260px',
+          overflowY: 'auto', padding: '6px',
+        }}>
+          {options.map(opt => (
+            <label key={opt.value} style={{
+              display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 8px',
+              borderRadius: '6px', cursor: 'pointer', fontSize: '13px', color: '#1a0a06',
+            }}>
+              <input
+                type="checkbox"
+                checked={selected.includes(opt.value)}
+                onChange={() => toggle(opt.value)}
+                style={{ cursor: 'pointer' }}
+              />
+              {opt.label}
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
-function TabularSection({ title, subtitle, columns }) {
+function TabularSection({ title, subtitle, columns, onCopy, copied }) {
   if (!columns || columns.length === 0) return null;
   const maxRows = Math.max(...columns.map(c => Math.ceil(c.parishes.length / 2)));
 
   return (
     <div style={{ marginBottom: '32px', border: '1px solid #F5E3D7', borderRadius: '12px', overflow: 'hidden' }}>
-      <div style={{ padding: '14px 20px', backgroundColor: '#FFF9F2', borderBottom: '1px solid #F5E3D7' }}>
+      <div style={{ padding: '14px 20px', backgroundColor: '#FFF9F2', borderBottom: '1px solid #F5E3D7', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#8B4C39' }}>
           {title}
           {subtitle ? <span style={{ fontWeight: 400, color: '#A7A68B', marginLeft: '8px' }}>{subtitle}</span> : null}
@@ -168,15 +199,35 @@ function TabularSection({ title, subtitle, columns }) {
           </tbody>
         </table>
       </div>
+      <div style={{ padding: '12px 20px', borderTop: '1px solid #F5E3D7', backgroundColor: '#FFF9F2', display: 'flex', justifyContent: 'flex-end' }}>
+        <button
+          onClick={onCopy}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 14px',
+            borderRadius: '8px', border: '1px solid #F5E3D7', backgroundColor: 'white',
+            color: '#8B4C39', fontSize: '12px', fontWeight: 600, cursor: 'pointer',
+          }}
+        >
+          {copied ? <Check size={14} color="#059669" /> : <Copy size={14} />}
+          {copied ? 'Copied!' : 'Copy list'}
+        </button>
+      </div>
     </div>
   );
 }
 
 export function Debtors() {
   const { user } = useAuth();
+  const [category, setCategory] = useState('');
+  const [nationalCollectionId, setNationalCollectionId] = useState('');
   const [year, setYear] = useState(CURRENT_YEAR);
-  const [month, setMonth] = useState(null);
+  const [selectedMonths, setSelectedMonths] = useState([]);
+  const [selectedYears, setSelectedYears] = useState([]);
   const [hasLoaded, setHasLoaded] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const { data: sourcesData } = useQuery(GET_SOURCES);
+  const nationalSources = (sourcesData?.remittanceSources || []).filter(s => s.isActive && s.category === 'National Collections');
 
   const [loadDebtors, { data, loading, error }] = useLazyQuery(GET_DEBTORS, {
     fetchPolicy: 'network-only',
@@ -184,74 +235,159 @@ export function Debtors() {
 
   const [regenerate, { data: regenData, loading: regenLoading, error: regenError }] = useMutation(REGENERATE_DEBTORS);
 
-  const debtors = data?.debtors || [];
-  const sections = hasLoaded ? processDebtors(debtors, year) : [];
-  const totalOutstanding = debtors.filter(d => !d.isPaid).length;
+  const isNational = category === 'National Collections';
+  const isMonthly = category === 'Rectory';
+
+  const collectionName = isNational
+    ? nationalSources.find(s => s.id === nationalCollectionId)?.name
+    : category;
+
+  const canLoad = !!collectionName && (isMonthly ? (!!year && selectedMonths.length > 0) : selectedYears.length > 0);
+
+  const handleCategoryChange = (val) => {
+    setCategory(val);
+    setNationalCollectionId('');
+    setSelectedMonths([]);
+    setSelectedYears([]);
+    setHasLoaded(false);
+  };
 
   const handleLoad = async () => {
+    if (!canLoad) return;
     setHasLoaded(true);
-    await loadDebtors({ variables: { year, month, overdueOnly: true } });
+    setCopied(false);
+    await loadDebtors({
+      variables: isMonthly
+        ? { years: [year], months: selectedMonths, collectionName, overdueOnly: true }
+        : { years: selectedYears, months: [0], collectionName, overdueOnly: true },
+    });
   };
 
   const handleRegenerate = async () => {
-    await regenerate({ variables: { year } });
-    await loadDebtors({ variables: { year, month, overdueOnly: true } });
+    const targetYear = isMonthly ? year : (selectedYears[0] || CURRENT_YEAR);
+    await regenerate({ variables: { year: targetYear } });
+    if (hasLoaded) await handleLoad();
   };
 
-  const selectStyle = {
-    height: '36px',
-    borderRadius: '8px',
-    border: '1px solid #F5E3D7',
-    padding: '0 12px',
-    fontSize: '13px',
-    color: '#1a0a06',
-    backgroundColor: 'white',
-    outline: 'none',
-    cursor: 'pointer',
+  const debtors = data?.debtors || [];
+
+  // Build columns: months for Rectory, years for everything else
+  const columns = (() => {
+    if (!hasLoaded) return [];
+    if (isMonthly) {
+      return [...selectedMonths].sort((a, b) => a - b).map(m => ({
+        label: MONTH_NAMES[m],
+        parishes: [...new Set(
+          debtors.filter(d => d.month === m && !d.isPaid).map(d => d.parish.name)
+        )].sort(),
+      }));
+    }
+    return [...selectedYears].sort((a, b) => a - b).map(y => ({
+      label: String(y),
+      parishes: [...new Set(
+        debtors.filter(d => d.year === y && !d.isPaid).map(d => d.parish.name)
+      )].sort(),
+    }));
+  })();
+
+  const sectionTitle = collectionName || '';
+  const sectionSubtitle = isMonthly ? String(year) : (
+    selectedYears.length > 1 ? `${Math.min(...selectedYears)}–${Math.max(...selectedYears)}` : String(selectedYears[0] || '')
+  );
+
+  const handleCopy = async () => {
+    const lines = [];
+    lines.push(`${sectionTitle}${sectionSubtitle ? ' — ' + sectionSubtitle : ''}`);
+    lines.push('');
+    for (const col of columns) {
+      if (col.parishes.length === 0) continue;
+      lines.push(col.label.toUpperCase() + ':');
+      col.parishes.forEach((name, i) => lines.push(`${i + 1}. ${name}`));
+      lines.push('');
+    }
+    try {
+      await navigator.clipboard.writeText(lines.join('\n').trim());
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard API unavailable — fail silently, button just won't confirm
+    }
   };
 
-  const years = Array.from({ length: 6 }, (_, i) => CURRENT_YEAR + i);
+  const monthOptions = MONTH_NAMES.slice(1).map((name, idx) => ({ value: idx + 1, label: name }));
+  const yearOptions = YEAR_OPTIONS.map(y => ({ value: y, label: String(y) }));
+
+  const totalListed = columns.reduce((sum, c) => sum + c.parishes.length, 0);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       <div>
         <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#1a0a06', marginBottom: '4px' }}>Debtors</h1>
         <p style={{ fontSize: '13px', color: '#A7A68B' }}>
-          Select a year and month, then load the debtors list.
+          Choose a collection and a period, then load the list.
         </p>
       </div>
 
       {/* Controls */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', backgroundColor: 'white', padding: '18px 20px', borderRadius: '12px', border: '1px solid #F5E3D7' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <label style={{ fontSize: '12px', fontWeight: 600, color: '#8B4C39' }}>Year:</label>
-          <select value={year} onChange={e => setYear(parseInt(e.target.value))} style={selectStyle}>
-            {years.map(y => <option key={y} value={y}>{y}</option>)}
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: '14px', flexWrap: 'wrap', backgroundColor: 'white', padding: '18px 20px', borderRadius: '12px', border: '1px solid #F5E3D7' }}>
+        <div>
+          <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#8B4C39', marginBottom: '4px' }}>Collection</label>
+          <select value={category} onChange={e => handleCategoryChange(e.target.value)} style={{ ...selectStyle, minWidth: '180px' }}>
+            <option value="">Select collection</option>
+            {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <label style={{ fontSize: '12px', fontWeight: 600, color: '#8B4C39' }}>Month:</label>
-          <select value={month ?? ''} onChange={e => setMonth(e.target.value ? parseInt(e.target.value) : null)} style={selectStyle}>
-            <option value="">All</option>
-            {MONTH_NAMES.map((name, idx) => (
-              <option key={idx} value={idx}>{name}</option>
-            ))}
-          </select>
-        </div>
+        {isNational && (
+          <div>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#8B4C39', marginBottom: '4px' }}>Which National Collection</label>
+            <select value={nationalCollectionId} onChange={e => { setNationalCollectionId(e.target.value); setHasLoaded(false); }} style={{ ...selectStyle, minWidth: '200px' }}>
+              <option value="">Select specific collection</option>
+              {nationalSources.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </div>
+        )}
+
+        {category && isMonthly && (
+          <>
+            <div>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#8B4C39', marginBottom: '4px' }}>Year</label>
+              <select value={year} onChange={e => { setYear(parseInt(e.target.value)); setHasLoaded(false); }} style={{ ...selectStyle, minWidth: '110px' }}>
+                {YEAR_OPTIONS.map(y => <option key={y} value={y}>{y}</option>)}
+              </select>
+            </div>
+            <MultiSelect
+              label="Month(s)"
+              options={monthOptions}
+              selected={selectedMonths}
+              onChange={v => { setSelectedMonths(v); setHasLoaded(false); }}
+              placeholder="Select month(s)"
+            />
+          </>
+        )}
+
+        {category && !isMonthly && (!isNational || nationalCollectionId) && (
+          <MultiSelect
+            label="Year(s)"
+            options={yearOptions}
+            selected={selectedYears}
+            onChange={v => { setSelectedYears(v); setHasLoaded(false); }}
+            placeholder="Select year(s)"
+          />
+        )}
 
         <button
           onClick={handleLoad}
-          disabled={loading}
+          disabled={!canLoad || loading}
           style={{
-            height: '36px',
+            height: '38px',
             borderRadius: '8px',
             border: 'none',
-            backgroundColor: '#D3542A',
+            backgroundColor: !canLoad ? '#F5E3D7' : '#D3542A',
             color: 'white',
             fontSize: '13px',
             fontWeight: 600,
-            cursor: 'pointer',
+            cursor: !canLoad ? 'not-allowed' : 'pointer',
             padding: '0 18px',
             display: 'flex',
             alignItems: 'center',
@@ -267,7 +403,7 @@ export function Debtors() {
             onClick={handleRegenerate}
             disabled={regenLoading}
             style={{
-              height: '36px',
+              height: '38px',
               borderRadius: '8px',
               border: '1px solid #F5E3D7',
               backgroundColor: 'white',
@@ -288,7 +424,7 @@ export function Debtors() {
         )}
       </div>
 
-      {/* Results */}
+      {/* Status messages */}
       {regenData?.regenerateDebtors?.success && (
         <div style={{ padding: '12px 16px', backgroundColor: '#ecfdf5', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#059669' }}>
           <CheckCircle size={16} />
@@ -315,7 +451,13 @@ export function Debtors() {
       {!hasLoaded && !loading && (
         <div style={{ textAlign: 'center', padding: '60px', color: '#A7A68B' }}>
           <Search size={40} style={{ margin: '0 auto 16px', opacity: 0.4 }} />
-          <p style={{ fontSize: '14px' }}>Select a year and month, then click <strong>Load Debtors</strong></p>
+          <p style={{ fontSize: '14px' }}>
+            {!category
+              ? <>Pick a <strong>collection</strong> to get started</>
+              : isNational && !nationalCollectionId
+                ? <>Pick <strong>which national collection</strong></>
+                : <>Pick a {isMonthly ? 'year and month(s)' : 'year(s)'}, then click <strong>Load Debtors</strong></>}
+          </p>
         </div>
       )}
 
@@ -326,19 +468,21 @@ export function Debtors() {
         </div>
       )}
 
-      {hasLoaded && !loading && sections.length === 0 && !error && (
+      {hasLoaded && !loading && totalListed === 0 && !error && (
         <div style={{ textAlign: 'center', padding: '48px' }}>
           <div style={{ width: '56px', height: '56px', borderRadius: '50%', backgroundColor: '#ecfdf5', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
             <CheckCircle size={28} color="#059669" />
           </div>
           <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#1a0a06', marginBottom: '4px' }}>No outstanding debts</h3>
-          <p style={{ fontSize: '13px', color: '#A7A68B' }}>All parishes are up to date for {MONTH_NAMES[month || 0]} {year}</p>
+          <p style={{ fontSize: '13px', color: '#A7A68B' }}>
+            Every parish is up to date for {sectionTitle} {sectionSubtitle}.
+          </p>
         </div>
       )}
 
-      {hasLoaded && !loading && sections.map((section, i) => (
-        <TabularSection key={i} title={section.title} subtitle={section.subtitle} columns={section.columns} />
-      ))}
+      {hasLoaded && !loading && totalListed > 0 && (
+        <TabularSection title={sectionTitle} subtitle={sectionSubtitle} columns={columns} onCopy={handleCopy} copied={copied} />
+      )}
     </div>
   );
 }

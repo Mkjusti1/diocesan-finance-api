@@ -3,6 +3,7 @@ import { useQuery, useMutation } from "@apollo/client/react";
 import { CreditCard, CheckCircle, ChevronDown } from 'lucide-react';
 import { GET_PARISHES, GET_REMITTANCE_SOURCES, RECORD_PAYMENT, GET_REMITTANCE_RECORDS, GET_DASHBOARD_STATS } from '@/graphql/queries';
 import { useAuth } from '@/context/AuthContext';
+import { formatCurrency } from '@/lib/utils';
 
 const MONTHS = [
   { value: 1, label: 'January' }, { value: 2, label: 'February' },
@@ -50,7 +51,7 @@ export function RecordPayment() {
       { query: GET_DASHBOARD_STATS, variables: { year: form.year } },
     ],
     onCompleted: () => {
-      setSuccess('Payment recorded successfully.');
+      setSuccess('Payment added to the running total for this collection.');
       setForm(f => ({ ...f, amount: '', notes: '' }));
       setTimeout(() => setSuccess(''), 3000);
     },
@@ -59,6 +60,23 @@ export function RecordPayment() {
   const isNational = form.collectionType === 'National Collections';
   const selectedSource = sourcesData?.remittanceSources?.find(s => s.name === form.collectionType);
   const collectionId = isNational ? form.nationalCollectionId : selectedSource?.id;
+  const selectedSourceName = isNational
+    ? sourcesData?.remittanceSources?.find(s => s.id === form.nationalCollectionId)?.name
+    : form.collectionType;
+
+  const periodMonth = isNational ? 0 : (form.month ? parseInt(form.month) : undefined);
+  const readyForLookup = form.parishId && form.year && collectionId && (isNational || form.month);
+
+  const { data: existingData } = useQuery(GET_REMITTANCE_RECORDS, {
+    variables: { year: parseInt(form.year), month: periodMonth, parishId: form.parishId },
+    skip: !readyForLookup,
+    fetchPolicy: 'network-only',
+  });
+
+  const existingRecord = existingData?.remittanceRecords?.[0];
+  const existingAmount = existingRecord?.lineItems?.find(
+    li => li.source?.name?.toLowerCase().trim() === (selectedSourceName || '').toLowerCase().trim()
+  )?.amount || 0;
 
   const canSubmit =
     form.collectionType && form.parishId && form.year && form.amount &&
@@ -86,7 +104,7 @@ export function RecordPayment() {
       <div>
         <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#1a0a06', marginBottom: '4px' }}>Record Payment</h1>
         <p style={{ fontSize: '13px', color: '#A7A68B' }}>
-          Manually add or update a parish payment for any collection and month.
+          Log a payment for a parish — the amount you enter is added to whatever is already recorded for that collection and period.
         </p>
       </div>
 
@@ -154,6 +172,14 @@ export function RecordPayment() {
           <div>
             <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#8B4C39', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Amount (₦) *</label>
             <input type="number" min="0" step="0.01" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} placeholder="0.00" style={inputStyle} required />
+            {readyForLookup && (
+              <p style={{ fontSize: '11px', color: '#A7A68B', marginTop: '6px' }}>
+                Already recorded: <strong style={{ color: '#8B4C39' }}>{formatCurrency(existingAmount)}</strong>
+                {form.amount && parseFloat(form.amount) > 0 && (
+                  <> — will become <strong style={{ color: '#D3542A' }}>{formatCurrency(existingAmount + parseFloat(form.amount))}</strong></>
+                )}
+              </p>
+            )}
           </div>
         </div>
 
