@@ -122,7 +122,8 @@ DB_PORT=5432
 DB_NAME=postgres
 DB_USER=your-db-user
 DB_PASSWORD=your-db-password
-JWT_SECRET=your-super-secret-jwt-key
+# Generate with: node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
+JWT_SECRET=<paste-the-generated-value-here>
 ```
 
 ### 3. Run the database schema
