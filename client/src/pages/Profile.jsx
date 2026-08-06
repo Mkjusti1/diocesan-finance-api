@@ -122,7 +122,7 @@ export function Profile() {
             <label style={labelStyle}>New Password *</label>
             <input type="password" value={form.newPass}
               onChange={e => setForm(f => ({ ...f, newPass: e.target.value }))}
-              required style={inputStyle} placeholder="At least 6 characters" />
+              required style={inputStyle} placeholder="At least 8 characters, upper+lowercase, and a number" />
           </div>
           <div>
             <label style={labelStyle}>Confirm New Password *</label>
@@ -183,7 +183,7 @@ export function Profile() {
               <label style={labelStyle}>New Password *</label>
               <input type="password" value={newAdminPass}
                 onChange={e => setNewAdminPass(e.target.value)}
-                required style={inputStyle} placeholder="At least 6 characters" />
+                required style={inputStyle} placeholder="At least 8 characters, upper+lowercase, and a number" />
             </div>
 
             {adminStatus && (

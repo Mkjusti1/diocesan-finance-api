@@ -11,6 +11,12 @@ if (!JWT_SECRET) {
   process.exit(1);
 }
 
+// Simple in-memory brute-force guard for login, keyed by email.
+// Resets on server restart — acceptable at this app's scale, and avoids
+// adding external infrastructure just for rate limiting.
+const loginAttempts = new Map();
+const LOGIN_LOCKOUT_MS = 15 * 60 * 1000;
+
 const MONTH_NAMES = [
   'Annual', 'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'
@@ -599,12 +605,27 @@ export const resolvers = {
     login: async (_, { input }) => {
       const { email, password } = input;
 
+      const attempt = loginAttempts.get(email);
+      if (attempt && attempt.count >= 10 && Date.now() - attempt.firstAttemptAt < LOGIN_LOCKOUT_MS) {
+        throw new Error('Too many failed login attempts for this account. Please try again in 15 minutes.');
+      }
+
       const { rows } = await pool.query(
         'SELECT * FROM users WHERE email = $1 AND is_active = true',
         [email]
       );
 
+      const recordFailure = () => {
+        const current = loginAttempts.get(email);
+        if (current && Date.now() - current.firstAttemptAt < LOGIN_LOCKOUT_MS) {
+          current.count += 1;
+        } else {
+          loginAttempts.set(email, { count: 1, firstAttemptAt: Date.now() });
+        }
+      };
+
       if (rows.length === 0) {
+        recordFailure();
         throw new Error('Invalid credentials');
       }
 
@@ -615,8 +636,12 @@ export const resolvers = {
       }
 
       const valid = await bcrypt.compare(password, dbUser.password_hash);
-      if (!valid) throw new Error('Invalid credentials');
+      if (!valid) {
+        recordFailure();
+        throw new Error('Invalid credentials');
+      }
 
+      loginAttempts.delete(email);
       const token = generateToken(dbUser);
       return { token, user: mapUser(dbUser) };
     },
@@ -654,6 +679,7 @@ export const resolvers = {
       const valid = await bcrypt.compare(currentPassword, dbUser.password_hash);
       if (!valid) throw new Error('Current password is incorrect');
 
+      validatePassword(newPassword);
       const hash = await bcrypt.hash(newPassword, 12);
       await pool.query('UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2', [hash, user.id]);
 
@@ -670,6 +696,7 @@ export const resolvers = {
       const lastName = parts.slice(1).join(' ') || '';
 
       if (!password) throw new Error('Password is required');
+      validatePassword(password);
       const passwordHash = await bcrypt.hash(password, 12);
 
       const { rows } = await pool.query(
@@ -1025,7 +1052,7 @@ export const resolvers = {
 
     adminResetPassword: async (_, { userId, newPassword }, { user }) => {
       requireRole(user, 'ADMIN');
-      if (newPassword.length < 6) throw new Error('Password must be at least 6 characters');
+      validatePassword(newPassword);
       const hash = await bcrypt.hash(newPassword, 12);
       await pool.query(
         'UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2',
@@ -1035,19 +1062,19 @@ export const resolvers = {
       return true;
     },
 
-    markAsOverdue: async (_, { parishId, year, month }, { user }) => {
+    markAsOverdue: async (_, { parishId, collectionId, year, month }, { user }) => {
       requireRole(user, 'ADMIN');
 
       const { rows } = await pool.query(
         `INSERT INTO debtors (parish_id, collection_id, year, month, expected_amount, actual_amount, balance, is_paid)
-         VALUES ($1, 1, $2, $3, 0, 0, 0, false)
+         VALUES ($1, $2, $3, $4, 0, 0, 0, false)
          ON CONFLICT (parish_id, collection_id, year, month)
          DO UPDATE SET is_paid = false, updated_at = NOW()
          RETURNING *`,
-        [parishId, year, month]
+        [parishId, collectionId, year, month]
       );
 
-      await logAuditEvent(user.id, 'MARK_OVERDUE', 'debtors', rows[0].id, null, { parishId, year, month });
+      await logAuditEvent(user.id, 'MARK_OVERDUE', 'debtors', rows[0].id, null, { parishId, collectionId, year, month });
       return mapDebtor(rows[0]);
     },
     bulkRecordRemittances: async (_, { input }, { user }) => {

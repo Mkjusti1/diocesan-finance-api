@@ -240,7 +240,7 @@ type BulkRecordResult {
     deleteRemittanceRecord(id: ID!): Boolean!
     updateDebtor(id: ID!, input: UpdateDebtorInput!): Debtor!
     recordPayment(input: RecordPaymentInput!): Debtor!
-    markAsOverdue(parishId: ID!, year: Int!, month: Int!): Debtor!
+    markAsOverdue(parishId: ID!, collectionId: ID!, year: Int!, month: Int!): Debtor!
     adminResetPassword(userId: ID!, newPassword: String!): Boolean!
  bulkRecordRemittances(input: BulkRecordRemittancesInput!): BulkRecordResult!
  deleteRemittanceRecordsByCollectionAndYear(collectionName: String!, year: Int!): BulkDeleteResult!

@@ -163,6 +163,7 @@ export function Users() {
               <div>
                 <label style={labelStyle}>Password *</label>
                 <input type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} required style={inputStyle} />
+                <p style={{ fontSize: '11px', color: '#A7A68B', marginTop: '4px' }}>At least 8 characters, with an uppercase letter, a lowercase letter, and a number.</p>
               </div>
               <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
                 <button type="submit" style={{

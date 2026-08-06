@@ -15,7 +15,11 @@ import { pool } from './db/pool.js';
 
 dotenv.config();
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  console.error('FATAL: JWT_SECRET environment variable is not set');
+  process.exit(1);
+}
 const PORT = process.env.PORT || 4000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const YEARLY_FORMATS = ['harvest-bazaar', 'cathedraticum', 'project-sunday', 'seminary-collections'];
@@ -498,6 +502,7 @@ async function startServer() {
     console.log('✓ Apollo Server started');
 
     // Mount Apollo middleware
+app.use('/graphql', apiLimiter);
 apolloServer.applyMiddleware({ app, cors: false });
 
     // Start Express server
