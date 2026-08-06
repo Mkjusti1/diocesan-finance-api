@@ -340,7 +340,7 @@ export const resolvers = {
       return mapRemittanceRecord(rows[0]);
     },
 
-        debtors: async (_, { year, month, years, months, collectionName, overdueOnly }, { user }) => {
+        debtors: async (_, { year, month, years, months, collectionName, collectionNames, overdueOnly }, { user }) => {
       requireRole(user, 'ADMIN', 'BISHOP');
 
       // Single optimized query with JOINs — no N+1
@@ -367,7 +367,13 @@ export const resolvers = {
       if (months && months.length > 0) { params.push(months); query += ` AND d.month = ANY($${params.length})`; }
       else if (month !== undefined && month !== null) { params.push(month); query += ` AND d.month = $${params.length}`; }
 
-      if (collectionName) { params.push(collectionName); query += ` AND LOWER(c.name) = LOWER($${params.length})`; }
+      if (collectionNames && collectionNames.length > 0) {
+        params.push(collectionNames.map(n => n.toLowerCase()));
+        query += ` AND LOWER(c.name) = ANY($${params.length})`;
+      } else if (collectionName) {
+        params.push(collectionName);
+        query += ` AND LOWER(c.name) = LOWER($${params.length})`;
+      }
 
       if (overdueOnly) { query += ' AND d.is_paid = false'; }
 

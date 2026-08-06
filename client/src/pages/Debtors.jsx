@@ -7,8 +7,8 @@ import { useAuth } from '@/context/AuthContext';
 const CURRENT_YEAR = new Date().getFullYear();
 
 const GET_DEBTORS = gql`
-  query GetDebtors($years: [Int!], $months: [Int!], $collectionName: String, $overdueOnly: Boolean) {
-    debtors(years: $years, months: $months, collectionName: $collectionName, overdueOnly: $overdueOnly) {
+  query GetDebtors($years: [Int!], $months: [Int!], $collectionNames: [String!], $overdueOnly: Boolean) {
+    debtors(years: $years, months: $months, collectionNames: $collectionNames, overdueOnly: $overdueOnly) {
       id
       year
       month
@@ -219,7 +219,7 @@ function TabularSection({ title, subtitle, columns, onCopy, copied }) {
 export function Debtors() {
   const { user } = useAuth();
   const [category, setCategory] = useState('');
-  const [nationalCollectionId, setNationalCollectionId] = useState('');
+  const [selectedNationalCollectionIds, setSelectedNationalCollectionIds] = useState([]);
   const [year, setYear] = useState(CURRENT_YEAR);
   const [selectedMonths, setSelectedMonths] = useState([]);
   const [selectedYears, setSelectedYears] = useState([]);
@@ -238,15 +238,21 @@ export function Debtors() {
   const isNational = category === 'National Collections';
   const isMonthly = category === 'Rectory';
 
-  const collectionName = isNational
-    ? nationalSources.find(s => s.id === nationalCollectionId)?.name
-    : category;
+  const selectedNationalCollections = isNational
+    ? nationalSources.filter(s => selectedNationalCollectionIds.includes(s.id))
+    : [];
 
-  const canLoad = !!collectionName && (isMonthly ? (!!year && selectedMonths.length > 0) : selectedYears.length > 0);
+  const collectionNames = isNational
+    ? selectedNationalCollections.map(s => s.name)
+    : (category ? [category] : []);
+
+  const canLoad = isNational
+    ? selectedNationalCollectionIds.length > 0 && selectedYears.length > 0
+    : !!category && (isMonthly ? (!!year && selectedMonths.length > 0) : selectedYears.length > 0);
 
   const handleCategoryChange = (val) => {
     setCategory(val);
-    setNationalCollectionId('');
+    setSelectedNationalCollectionIds([]);
     setSelectedMonths([]);
     setSelectedYears([]);
     setHasLoaded(false);
@@ -258,8 +264,8 @@ export function Debtors() {
     setCopied(false);
     await loadDebtors({
       variables: isMonthly
-        ? { years: [year], months: selectedMonths, collectionName, overdueOnly: true }
-        : { years: selectedYears, months: [0], collectionName, overdueOnly: true },
+        ? { years: [year], months: selectedMonths, collectionNames, overdueOnly: true }
+        : { years: selectedYears, months: [0], collectionNames, overdueOnly: true },
     });
   };
 
@@ -282,6 +288,18 @@ export function Debtors() {
         )].sort(),
       }));
     }
+    if (isNational) {
+      return [...selectedNationalCollections]
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map(nc => ({
+          label: nc.name,
+          parishes: [...new Set(
+            debtors
+              .filter(d => d.collection?.name?.toLowerCase() === nc.name.toLowerCase() && !d.isPaid)
+              .map(d => d.parish.name)
+          )].sort(),
+        }));
+    }
     return [...selectedYears].sort((a, b) => a - b).map(y => ({
       label: String(y),
       parishes: [...new Set(
@@ -290,7 +308,9 @@ export function Debtors() {
     }));
   })();
 
-  const sectionTitle = collectionName || '';
+  const sectionTitle = isNational
+    ? (selectedNationalCollections.length === 1 ? selectedNationalCollections[0].name : category)
+    : (category || '');
   const sectionSubtitle = isMonthly ? String(year) : (
     selectedYears.length > 1 ? `${Math.min(...selectedYears)}–${Math.max(...selectedYears)}` : String(selectedYears[0] || '')
   );
@@ -339,13 +359,13 @@ export function Debtors() {
         </div>
 
         {isNational && (
-          <div>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#8B4C39', marginBottom: '4px' }}>Which National Collection</label>
-            <select value={nationalCollectionId} onChange={e => { setNationalCollectionId(e.target.value); setHasLoaded(false); }} style={{ ...selectStyle, minWidth: '200px' }}>
-              <option value="">Select specific collection</option>
-              {nationalSources.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
-          </div>
+          <MultiSelect
+            label="Which National Collection"
+            options={nationalSources.map(s => ({ value: s.id, label: s.name }))}
+            selected={selectedNationalCollectionIds}
+            onChange={v => { setSelectedNationalCollectionIds(v); setHasLoaded(false); }}
+            placeholder="Select collection(s)"
+          />
         )}
 
         {category && isMonthly && (
@@ -366,7 +386,7 @@ export function Debtors() {
           </>
         )}
 
-        {category && !isMonthly && (!isNational || nationalCollectionId) && (
+        {category && !isMonthly && (!isNational || selectedNationalCollectionIds.length > 0) && (
           <MultiSelect
             label="Year(s)"
             options={yearOptions}
@@ -454,8 +474,8 @@ export function Debtors() {
           <p style={{ fontSize: '14px' }}>
             {!category
               ? <>Pick a <strong>collection</strong> to get started</>
-              : isNational && !nationalCollectionId
-                ? <>Pick <strong>which national collection</strong></>
+              : isNational && selectedNationalCollectionIds.length === 0
+                ? <>Pick <strong>which national collection(s)</strong></>
                 : <>Pick a {isMonthly ? 'year and month(s)' : 'year(s)'}, then click <strong>Load Debtors</strong></>}
           </p>
         </div>
